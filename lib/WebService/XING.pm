@@ -7,9 +7,10 @@ use JSON ();
 use LWP::UserAgent;
 use HTTP::Headers;  # ::Fast
 use HTTP::Request;
-use Mo qw(builder chain is required);
+use Mo qw(builder chain required);
 use Net::OAuth;
 use URI;
+use WebService::XING::Error;
 
 =head1 NAME
 
@@ -167,8 +168,6 @@ sub login {
 
     $res->is_success or return $self->_set_error_from_response($res);
 
-    $self->clear_error;
-
     my $oauth_res = Net::OAuth->response('request token')
         ->from_post_body($res->decoded_content);
 
@@ -204,13 +203,211 @@ sub auth {
 
     $res->is_success or return $self->_set_error_from_response($res);
 
-    $self->clear_error;
-
     my $oauth_res = Net::OAuth->response('access token')
         ->from_post_body($res->decoded_content);
 
     $self->access_credentials($oauth_res->token, $oauth_res->token_secret);
 }
+
+=head2 get_user_profile
+
+=head2 create_status_message
+
+=head2 get_profile_message
+
+=head2 update_profile_message
+
+=head2 get_contacts
+
+=head2 get_shared_contacts
+
+=head2 get_incoming_contact_requests
+
+=head2 get_sent_contact_requests
+
+=head2 create_contact_request
+
+=head2 accept_contact_request
+
+=head2 delete_contact_request
+
+=head2 get_contact_paths
+
+=head2 get_bookmarks
+
+=head2 create_bookmark
+
+=head2 delete_bookmark
+
+=head2 get_network_feed
+
+=head2 get_user_feed
+
+=head2 get_activity
+
+=head2 share_activity
+
+=head2 delete_activity
+
+=head2 get_activity_comments
+
+=head2 create_activity_comment
+
+=head2 delete_activity_comment
+
+=head2 get_activity_likes
+
+=head2 create_activity_like
+
+=head2 delete_activity_like
+
+=head2 get_profile_visits
+
+=head2 create_profile_visit
+
+=head2 get_recommended_users
+
+=head2 create_invitations
+
+=head2 update_geo_location
+
+=head2 get_nearby_users
+
+=cut
+
+my %APITAB = (
+    # User Profiles
+    get_user_profile =>
+        [GET => '/v1/users/:id', '@fields'],
+
+    # Status Messages
+    create_status_message =>
+        [POST => '/v1/users/:id/status_message', '!message'],
+
+    # Profile Messages
+    get_profile_message =>
+        [GET => '/v1/users/:user_id/profile_message'],
+    update_profile_message =>
+        [PUT => '/v1/users/:user_id/profile_message', '!message', '?public'],
+
+    # Contacts
+    get_contacts =>
+        [GET => '/v1/users/:user_id/contacts', 'limit', 'offset', 'order_by', '@user_fields'],
+    get_shared_contacts =>
+        [GET => '/v1/users/:user_id/contacts/shared', 'limit', 'offset', 'order_by', '@user_fields'],
+
+    # Contact Requests
+    get_incoming_contact_requests =>
+        [GET => '/v1/users/:user_id/contact_requests', 'limit', 'offset', '@user_fields'],
+    get_sent_contact_requests =>
+        [GET => '/v1/users/:user_id/contact_requests/sent', 'limit', 'offset'],
+    create_contact_request =>
+        [POST => '/v1/users/:user_id/contact_requests', 'message'],
+    accept_contact_request =>
+        [PUT => '/v1/users/:user_id/contact_requests/:id/accept'],
+    delete_contact_request =>
+        [DELETE => '/v1/users/:user_id/contact_requests/:id'],
+
+    # Contact Path
+    get_contact_paths =>
+        [GET => '/v1/users/:user_id/network/:other_user_id/paths', '?all_paths', '@user_fields'],
+
+    # Bookmarks
+    get_bookmarks =>
+        [GET => '/v1/users/:user_id/bookmarks', 'limit', 'offset', '@user_fields'],
+    create_bookmark =>
+        [PUT => '/v1/users/:user_id/bookmarks/:id'],
+    delete_bookmark =>
+        [DELETE => '/v1/users/:user_id/bookmarks/:id'],
+
+    # Network Feed
+    get_network_feed =>
+        [GET => '/v1/users/:user_id/network_feed', '?aggregate', 'since', 'until', '@user_fields'],
+    get_user_feed =>
+        [GET => '/v1/users/:id/feed', 'since', 'until', '@user_fields'],
+    get_activity =>
+        [GET => '/v1/activities/:id', '@user_fields'],
+    share_activity =>
+        [POST => '/v1/activities/:id/share', 'text'],
+    delete_activity =>
+        [DELETE => '/v1/activities/:id'],
+    get_activity_comments =>
+        [GET => '/v1/activities/:activity_id/comments', 'limit', 'offset', '@user_fields'],
+    create_activity_comment =>
+        [POST => '/v1/activities/:activity_id/comments', 'text'],
+    delete_activity_comment =>
+        [DELETE => '/v1/activities/:activity_id/comments/:id'],
+    get_activity_likes =>
+        [GET => '/v1/activities/:activity_id/likes', 'limit', 'offset', '@user_fields'],
+    create_activity_like =>
+        [PUT => '/v1/activities/:activity_id/like'],
+    delete_activity_like =>
+        [DELETE => '/v1/activities/:activity_id/like'],
+
+    # Profile Visits
+    get_profile_visits =>
+        [GET => '/v1/users/:user_id/visits', 'limit', 'offset', 'since', '?strip_html'],
+    create_profile_visit =>
+        [POST => '/v1/users/:user_id/visits'],
+
+    # Recommendations
+    get_recommended_users =>
+        [GET => '/v1/users/:user_id/network/recommendations', 'limit', 'offset', 'similar_user_id', '@user_fields'],
+
+    # Invitations
+    create_invitations =>
+        [POST => '/v1/users/invite', 'to_emails=l', 'message', '@user_fields'],
+
+    # Geo Locations
+    update_geo_location =>
+        [PUT => '/v1/users/:user_id/geo_location', '!accuracy', '!latitude', '!longitude', 'ttl'],
+    get_nearby_users  =>
+        [GET => '/v1/users/:user_id/nearby_users', 'age', 'radius', '@user_fields'],
+);
+
+sub AUTOLOAD {
+    my ($self, %p) = @_;
+    my ($package, $action) = our $AUTOLOAD =~ /^([\w\:]+)\:\:(\w+)$/;
+    my ($method, $resource, @params) = @{$APITAB{$action}}
+        or $self->die->(qq{Can't locate object method "$action" via package "$package"});
+    my (@p, $p);
+
+    for ($resource =~ /:(\w+)/g) {
+        defined($p = delete $p{$_})
+            or $self->die->(_missing_parameter($_, $package, $action));
+        $resource =~ s/:$_/$p/;
+    }
+
+    for (@params) {
+        my ($flag, $key) = /^([\@\!\?]?)(\w+)$/;
+        my $value = delete $p{$key};
+
+        if (defined $value) {
+            if (ref $value eq 'ARRAY') {
+                $self->die->(_invalid_parameter($key, $package, $action))
+                    unless $flag eq '@';
+                push @p, $key, join(',', @$value);
+            }
+            elsif ($flag eq '?') {
+                push @p, $key, $value && $value ne 'false' ? 'true' : 'false';
+            }
+            else {
+                push @p, $key, $value;
+            }
+        }
+        else {
+            $self->die->(_missing_parameter($key, $package, $action))
+                if $flag eq '!';
+        }
+    }
+
+    $self->die->(_invalid_parameter((keys %p)[0], $package, $action))
+        if %p;
+
+    return $self->request($method, $resource, @p);
+}
+
+sub DESTROY { }
 
 =head2 request
 
@@ -227,14 +424,14 @@ sub request {
 
     if ($resource eq $self->request_token_resource) {
         $type = 'request token';
-        @extra = (callback => $args{callback} || 'oob');
+        @extra = (callback => delete $args{callback} || 'oob');
     }
     elsif ($resource eq $self->access_token_resource) {
         $type = 'access token';
         @extra = (
             token => $self->request_token,
             token_secret => $self->request_secret,
-            verifier => $args{verifier},
+            verifier => delete $args{verifier},
         );
     }
     else {
@@ -258,21 +455,17 @@ sub request {
 
     $oauth_req->sign;
 
-    # $oauth_req->to_url;
-    # $oauth_req->to_authorization_header;
-
     my $headers = HTTP::Headers->new(
         Authorization => $oauth_req->to_authorization_header,
     );
 
-    my $content;
+    my $content = '';
 
     if ($method ~~ ['POST', 'PUT']) {
-        $content = $args{content} // '';
-        if (ref $content eq 'HASH') {
-            my $url = URI->new('http:');
-            $url->query_form(%$content);
-            $content = $url->query;
+        my $u = URI->new('http:');
+        if (%args) {
+            $u->query_form(%args);
+            $content = $u->query;
             $content =~ s/(?<!%0D)%0A/%0D%0A/g;
         }
         $headers->header(
@@ -280,6 +473,18 @@ sub request {
             'Content-Length' => length $content
         );
     }
+    elsif (%args) {
+        my $u = URI->new($url);
+        $u->query_form(%args);
+        $url = $u->as_string;
+    }
+
+    $self->clear_error;
+
+    my $req = HTTP::Request->new($method, $url, $headers, $content);
+
+use Data::Dump 'dump';
+dump $req;
 
     return $self->_ua->request(HTTP::Request->new($method, $url, $headers, $content));
 }
@@ -292,11 +497,9 @@ my @CHARS = ('_', '0' .. '9', 'A' .. 'Z', 'a' .. 'z');
 
 sub nonce {
     my $s = "";
-    my $i = 16;
+    my $i = int(28 + rand 9);
 
-    do {
-        $s .= $CHARS[rand @CHARS];
-    } while (--$i);
+    do { $s .= $CHARS[rand @CHARS] } while --$i;
 
     return $s;
 }
@@ -328,51 +531,27 @@ sub _set_error_from_response {
     return undef;
 }
 
+sub _missing_parameter {
+    my ($p, $pack, $meth) = @_;
+
+    sprintf 'Mandatory parameter "%s" is missing in method call "%s" in package "%s"',
+            $p, $meth, $pack;
+}
+
+sub _invalid_parameter {
+    my ($p, $pack, $meth) = @_;
+
+    sprintf 'Invalid parameter "%s" in method call "%s" in package "%s"',
+            $p, $meth, $pack;
+}
+
+1;
+
+__END__
+
 =head1 AUTHOR
 
-Bernhard Graf, C<< <graf at cpan.org> >>
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<bug-webservice-xing at rt.cpan.org>, or through
-the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=WebService-XING>.  I will be notified, and then you'll
-automatically be notified of progress on your bug as I make changes.
-
-
-
-
-=head1 SUPPORT
-
-You can find documentation for this module with the perldoc command.
-
-    perldoc WebService::XING
-
-
-You can also look for information at:
-
-=over 4
-
-=item * RT: CPAN's request tracker (report bugs here)
-
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=WebService-XING>
-
-=item * AnnoCPAN: Annotated CPAN documentation
-
-L<http://annocpan.org/dist/WebService-XING>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/WebService-XING>
-
-=item * Search CPAN
-
-L<http://search.cpan.org/dist/WebService-XING/>
-
-=back
-
-
-=head1 ACKNOWLEDGEMENTS
-
+Bernhard Graf, C<< <graf (a) cpan.org> >>
 
 =head1 LICENSE AND COPYRIGHT
 
@@ -384,7 +563,3 @@ by the Free Software Foundation; or the Artistic License.
 
 See http://dev.perl.org/licenses/ for more information.
 
-
-=cut
-
-1; # End of WebService::XING

@@ -2,11 +2,20 @@ package WebService::XING::Error;
 
 use Mo qw(required);
 
+use overload '""' => \&as_string, '0+' => sub { $_[0]->code }, fallback => 1;
+
 has code => (required => 1);
 
 has 'error_name';
 
 has 'message';
+
+sub as_string {
+    my $self = shift;
+    my $s = $self->code;
+
+    $s .= ' ' . $self->message if $self->message;
+}
 
 1;
 

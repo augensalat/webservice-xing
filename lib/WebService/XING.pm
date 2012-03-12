@@ -368,8 +368,9 @@ my %APITAB = (
 sub AUTOLOAD {
     my ($self, %p) = @_;
     my ($package, $action) = our $AUTOLOAD =~ /^([\w\:]+)\:\:(\w+)$/;
-    my ($method, $resource, @params) = @{$APITAB{$action}}
+    my $row = $APITAB{$action}
         or $self->die->(qq{Can't locate object method "$action" via package "$package"});
+    my ($method, $resource, @params) = @$row;
     my (@p, $p);
 
     for ($resource =~ /:(\w+)/g) {
@@ -442,24 +443,8 @@ sub request {
         );
     }
 
-    my $oauth_req = Net::OAuth->request($type)->new(
-        consumer_key => $self->key,
-        consumer_secret => $self->secret,
-        request_url => $url,
-        request_method => $method,
-        signature_method => 'HMAC-SHA1',
-        timestamp => time,
-        nonce => $self->nonce,
-        @extra,
-    );
-
-    $oauth_req->sign;
-
-    my $headers = HTTP::Headers->new(
-        Authorization => $oauth_req->to_authorization_header,
-    );
-
     my $content = '';
+    my $headers = HTTP::Headers->new;
 
     if ($method ~~ ['POST', 'PUT']) {
         my $u = URI->new('http:');
@@ -479,12 +464,24 @@ sub request {
         $url = $u->as_string;
     }
 
+    my $oauth_req = Net::OAuth->request($type)->new(
+        consumer_key => $self->key,
+        consumer_secret => $self->secret,
+        request_url => $url,
+        request_method => $method,
+        signature_method => 'HMAC-SHA1',
+        timestamp => time,
+        nonce => $self->nonce,
+        @extra,
+    );
+
+    $oauth_req->sign;
+
+    $headers->header(Authorization => $oauth_req->to_authorization_header);
+
     $self->clear_error;
 
     my $req = HTTP::Request->new($method, $url, $headers, $content);
-
-use Data::Dump 'dump';
-dump $req;
 
     return $self->_ua->request(HTTP::Request->new($method, $url, $headers, $content));
 }

@@ -11,6 +11,7 @@ use Mo qw(builder chain required);
 use Net::OAuth;
 use URI;
 use WebService::XING::Error;
+use WebService::XING::Response;
 
 =head1 NAME
 
@@ -481,9 +482,14 @@ sub request {
 
     $self->clear_error;
 
-    my $req = HTTP::Request->new($method, $url, $headers, $content);
+    my $res = $self->_ua->request(HTTP::Request->new($method, $url, $headers, $content));
 
-    return $self->_ua->request(HTTP::Request->new($method, $url, $headers, $content));
+    return WebService::XING::Response->new(
+        code => $res->code,
+        message => $res->message,
+        headers => $res->headers,
+        content => $self->json->decode($res->decoded_content),
+    );
 }
 
 =head2 nonce

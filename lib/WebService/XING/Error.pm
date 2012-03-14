@@ -1,21 +1,11 @@
 package WebService::XING::Error;
 
-use Mo qw(required);
+use Mo 0.30 qw(builder);
 
-use overload '""' => \&as_string, '0+' => sub { $_[0]->code }, fallback => 1;
+extends 'WebService::XING::Response';
 
-has code => (required => 1);
-
-has 'error_name';
-
-has 'message';
-
-sub as_string {
-    my $self = shift;
-    my $s = $self->code;
-
-    $s .= ' ' . $self->message if $self->message;
-}
+has error_name => (builder => '_build_error_name');
+sub _build_error_name { $_[0]->content->{error_name} }
 
 1;
 
@@ -25,16 +15,16 @@ __END__
 
 WebService::XING::Error - XING API Error Response Class
 
+=head1 DESCRIPTION
+
+WebService::XING::Error is the XING API error response class.
+It inherits everything from L<WebService::XING::Response> and adds the
+following:
+
 =head1 ATTRIBUTES
-
-=head2 code
-
-3-digit HTTP status code.
 
 =head2 error_name
 
-Error description string.
-
-=head2 message
-
-A human readable message, but not intended to be displayed to the user.
+Error description string as returned by the XING API in an error response.
+Might be C<undef> if the API did not return an C<error_name> field in the
+response body.

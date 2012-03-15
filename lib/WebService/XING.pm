@@ -7,26 +7,16 @@ use JSON ();
 use LWP::UserAgent;
 use HTTP::Headers;  # ::Fast
 use HTTP::Request;
-use Mo 0.30 qw(builder chain required);
+use Mo 0.30 qw(builder chain is required);
 use Net::OAuth;
 use URI;
 use WebService::XING::Error;
 use WebService::XING::Response;
 
-=head1 NAME
-
-WebService::XING - Perl Interface to the XING API
-
-=head1 VERSION
-
-Version 0.000
-
-=cut
-
 our $VERSION = '0.000';
 
-our @CARP_NOT = qw(Mo::builder Mo::chain Mo::required);
-@Carp::Internal{qw(Mo::builder Mo::chain Mo::required)} = (1, 1, 1);
+our @CARP_NOT = qw(Mo::builder Mo::chain Mo::is Mo::required);
+@Carp::Internal{qw(Mo::builder Mo::chain Mo::is Mo::required)} = (1, 1, 1, 1);
 
 # Prototypes
 
@@ -37,86 +27,9 @@ sub _invalid_parameter ($$$);
 
 $Net::OAuth::PROTOCOL_VERSION = Net::OAuth::PROTOCOL_VERSION_1_0A;
 
-=head1 SYNOPSIS
+has key => (is => 'ro', required => 1);
 
-  use WebService::XING;
-
-  my $xing = WebService::XING->new(
-    key => $CUSTOMER_KEY,
-    secret => $CUSTOMER_SECRET,
-    access_token => $access_token,
-    access_secret => $access_secret,
-  );
-
-=head1 DESCRIPTION
-
-Perl Interface to the XING API.
-
-=head1 ATTRIBUTES
-
-All attributes can be set in the L<constructor|/new> as well as used
-as setters and getters of the object instance.
-
-=head2 key
-
-The application key a.k.a. "consumer key". Required.
-
-=head2 secret
-
-The application secret a.k.a. "consumer secret". Required.
-
-=head2 access_token
-
-  $xing = $xing->access_token($access_token);
-  $access_token = $xing->access_token;
-
-Access token as returned at the end of the OAuth process.
-Required for all methods besides L</login> and L</auth>.
-Returns the object in set mode.
-
-=head2 access_secret
-
-  $xing = $xing->access_secret($access_secret);
-  $access_secret = $xing->access_secret;
-
-Access secret as returned at the end of the OAuth process.
-Required for all methods besides L</login> and L</auth>.
-Returns the object in set mode.
-
-=head2 user_id
-
-The scrambled XING user id as returned (and set) by the L</auth> method.
-Your application will need to remember this because it serves as an entry
-point to most of the data calls.
-
-=head2 access_credentials
-
-  $xing = $xing->access_credentials(
-    $access_token, $access_secret, $user_id
-  );
-  ($access_token, $access_secret, $user_id) =
-    $xing->access_credentials;
-
-Convenience access attribute accessor, for getting and setting
-L</access_token>, L</access_secret> and L</user_id> in one go.
-Returns the object in set mode. Handy to store and restore this
-data in a session of a web application.
-
-=head2 base_url
-
-Web address of the XING API server. Do not change unless you know what
-you are doing. Default: C<https://api.xing.com>
-
-=head2 user_agent
-
-The user agent string for the request.
-Default: C<WebService::XING/$VERSION (Perl)>
-
-=cut
-
-has key => (required => 1);
-
-has secret => (required => 1);
+has secret => (is => 'ro', required => 1);
 
 has access_token => (builder => '_build_access_token', chain => 1);
 sub _build_access_token { $_[0]->die->('access_token is undefined') }
@@ -135,32 +48,41 @@ sub access_credentials {
     return $self->access_token($_[0])->access_secret($_[1]);
 }
 
-has base_url => (builder => '_build_base');
-sub _build_base { 'https://api.xing.com' }
-
-has user_agent => (builder => '_build_user_agent');
+has user_agent => (builder => '_build_user_agent', chain => 1);
 sub _build_user_agent { __PACKAGE__ . '/' . $VERSION . ' (Perl)' }
 
-has request_token_resource => (builder => '_build_request_token_resource');
-sub _build_request_token_resource { '/v1/request_token' }
-
-has authorize_resource => (builder => '_build_authorize_resource');
-sub _build_authorize_resource { '/v1/authorize' }
-
-has access_token_resource => (builder => '_build_access_token_resource');
-sub _build_access_token_resource { '/v1/access_token' }
-
-has request_timeout => (builder => '_build_request_timeout');
+has request_timeout => (builder => '_build_request_timeout', chain => 1);
 sub _build_request_timeout { 30 }
 
-has json => (builder => '_build_json');
+has json => (builder => '_build_json', chain => 1);
 sub _build_json { JSON->new->utf8 }
 
-has warn => (builder => '_build_warn');
+has warn => (builder => '_build_warn', chain => 1);
 sub _build_warn { sub { Carp::carp @_ } }
 
-has die => (builder => '_build_die');
+has die => (builder => '_build_die', chain => 1);
 sub _build_die { sub { Carp::croak @_ } }
+
+has base_url => (builder => '_build_base', chain => 1);
+sub _build_base { 'https://api.xing.com' }
+
+has request_token_resource => (
+    builder => '_build_request_token_resource',
+    chain => 1,
+);
+sub _build_request_token_resource { '/v1/request_token' }
+
+has authorize_resource => (
+    builder => '_build_authorize_resource',
+    chain => 1,
+);
+sub _build_authorize_resource { '/v1/authorize' }
+
+has access_token_resource => (
+    builder => '_build_access_token_resource',
+    chain => 1,
+);
+sub _build_access_token_resource { '/v1/access_token' }
 
 has _ua => (builder => '_build__ua');
 sub _build__ua {
@@ -181,79 +103,6 @@ sub _build__headers {
         'Accept-Encoding' => 'gzip, deflate',
     )
 }
-
-=head1 METHODS
-
-All methods are called with named arguments - or in other words as a
-list of key-value-pairs.
-
-All methods return a L<WebService::XING::Response> object on success.
-
-All methods except L</login> and L</auth> return a
-L<WebService::XING::Error> object (which is actually a child class of
-L<WebService::XING::Response>) on failure. A method may L</die>
-if called inaccurately (e.g. with missing arguments).
-
-=head2 new
-
-  my $xing = WebService::XING->new(
-    key => $CUSTOMER_KEY,
-    secret => $CUSTOMER_SECRET,
-    access_token => $access_token,
-    access_secret => $access_secret,
-  );
-
-The object constructor requires L</key> and L</secret> to be set, and
-for all methods besides L</login> and L</auth> also L</access_token> and
-L</access_secret>. Any other L<attribute|/ATTRIBUTES> can be set here as
-well.
-
-=head2 login
-
-  $res = $xing->login or die $res;
-  my $c = $res->content;
-  my ($auth_url, $token, $secret) = @c{qw(url token token_secret)};
-
-or
-
-  $res = $xing->login(callback => $callback_url) or die $res;
-  ...
-
-OAuth handshake step 1: Obtain a request token.
-
-If a callback url is given, the user will be re-directed back to that
-location from the XING authorization page after successfull completion
-of OAuth handshake step 2, otherwise (or if callback has the value
-C<oob>) a PIN code (C<oauth_verifier>) is displayed to the user on the
-XING authorization page, that must be entered in the consuming
-application.
-
-An C<undef> value is returned to indicate an error, the L</error>
-attribute contains a L<WebServive::XING::Error> object for further
-investigation.
-
-The L<content property|WebService::XING::Response/content> of the
-L<response|WebService::XING::Response> contains a hash with the 
-following elements:
-
-=over
-
-=item C<url>:
-
-The XING authorization URL. For the second step of the OAuth handshake
-the user must be redirected to that location.
-
-=item C<token>:
-
-The request token. Needed in L</auth>.
-
-=item C<token_secret>:
-
-The request token secret. Needed in L</auth>.
-
-=back
-
-=cut
 
 sub login {
     my ($self, %args) = @_;
@@ -281,64 +130,6 @@ sub login {
         }
     );
 }
-
-=head2 auth
-
-  $xing->auth(
-    token => $token,
-    token_secret => $token_secret,
-    verifier => $verifier,
-  );
-
-OAuth handshake step 3: Obtain an access token.
-Requires a list of the following three named parameters:
-
-=over
-
-=item C<token>:
-
-The B<request token> as returned in the response of a successfull
-L<login> call.
-
-=item C<token_secret>:
-
-The B<request token_secret> as returned in the response of a successfull
-L<login> call.
-
-=item C<verifier>:
-
-The OAuth verifier, that is provided to the callback as the
-C<oauth_verifier> parameter - or that is displayed to the user for an
-out-of-band authorization.
-
-=back
-
-The L<content property|WebService::XING::Response/content> of the
-L<response|WebService::XING::Response> contains a hash with the 
-following elements:
-
-=over
-
-=item C<token>:
-
-The access token.
-
-=item C<token_secret>:
-
-The access token secret.
-
-=item C<user_id>:
-
-The scrambled XING user id.
-
-=back
-
-These three values are also stored in the object instance, so it is
-not strictly required to store them. It might be useful for a web
-application though, to keep only these access credentials in a
-session, rather than the whole L<WebService::XING> object.
-
-=cut
 
 sub auth {
     my ($self, %args) = @_;
@@ -368,72 +159,6 @@ sub auth {
         }
     );
 }
-
-=head2 get_user_profile
-
-=head2 create_status_message
-
-=head2 get_profile_message
-
-=head2 update_profile_message
-
-=head2 get_contacts
-
-=head2 get_shared_contacts
-
-=head2 get_incoming_contact_requests
-
-=head2 get_sent_contact_requests
-
-=head2 create_contact_request
-
-=head2 accept_contact_request
-
-=head2 delete_contact_request
-
-=head2 get_contact_paths
-
-=head2 get_bookmarks
-
-=head2 create_bookmark
-
-=head2 delete_bookmark
-
-=head2 get_network_feed
-
-=head2 get_user_feed
-
-=head2 get_activity
-
-=head2 share_activity
-
-=head2 delete_activity
-
-=head2 get_activity_comments
-
-=head2 create_activity_comment
-
-=head2 delete_activity_comment
-
-=head2 get_activity_likes
-
-=head2 create_activity_like
-
-=head2 delete_activity_like
-
-=head2 get_profile_visits
-
-=head2 create_profile_visit
-
-=head2 get_recommended_users
-
-=head2 create_invitations
-
-=head2 update_geo_location
-
-=head2 get_nearby_users
-
-=cut
 
 my %APITAB = (
     # User Profiles
@@ -516,7 +241,7 @@ my %APITAB = (
 
     # Invitations
     create_invitations =>
-        [POST => '/v1/users/invite', 'to_emails=l', 'message', '@user_fields'],
+        [POST => '/v1/users/invite', '@to_emails', 'message', '@user_fields'],
 
     # Geo Locations
     update_geo_location =>
@@ -545,13 +270,6 @@ sub AUTOLOAD {
 }
 
 sub DESTROY { }
-
-=head2 request
-
-  $xing->request(POST => $self->request_token_resource);
-  $xing->request(GET => '/v1/users/me');
-
-=cut
 
 sub request {
     my ($self, $method, $resource, @args) = @_;
@@ -697,9 +415,628 @@ sub _invalid_parameter ($$$) {
 
 __END__
 
+=head1 NAME
+
+WebService::XING - Perl Interface to the XING API
+
+=head1 VERSION
+
+Version 0.000
+
+=head1 SYNOPSIS
+
+  use WebService::XING;
+
+  my $xing = WebService::XING->new(
+    key => $CUSTOMER_KEY,
+    secret => $CUSTOMER_SECRET,
+    access_token => $access_token,
+    access_secret => $access_secret,
+    user_id => $user_id,
+  );
+
+  $res = $xing->get_user_profile(id => 'me')
+    or die $res;
+
+  say "Hello, I'm ", $res->content->{users}->[0]->{display_name};
+
+=head1 DESCRIPTION
+
+C<WebService::XING> is the Perl interface to the XING API. It supports
+the whole range of functions described under L<https://dev.xing.com/>.
+
+=head2 Alpha Software Warning
+
+This software is released under the "Release Early - Release Often" motto,
+and should not be considered stable. You are welcome to check it out, but
+be prepared: it might kill your kittens!
+
+Moreover at the time of writing, the XING API is in a closed beta test
+phase, and still has a couple of bugs.
+
+=head1 ATTRIBUTES
+
+All attributes can be set in the L<constructor|/new>.
+
+All writeable attributes can be used as setters and getters of the
+object instance.
+
+All writeable attributes return the object in set mode, so they can be
+chained. This example does virtually the same as in the L</SYNOPSIS>
+above:
+
+  $res = WebService::XING->new(
+    key => $CUSTOMER_KEY,
+    secret => $CUSTOMER_SECRET
+  )
+    ->access_token($token)
+    ->access_secret($secret)
+    ->user_id($uid)
+    ->get_user_profile(id => 'me')
+      or die $res;
+
+  say "Hello, I'm ", $res->content->{users}->[0]->{display_name};
+
+All attributes with a default value are "lazy": They get their value when
+they are read the first time, unless they are already initialized. To get
+the default value, an attribute calls an init method called
+C<"_build_" . $attribute_name>.  This gives a sub class of
+C<WebService::XING> the opportunity to override any default value by
+providing a custom init method.
+
+=head2 key
+
+The application key a.k.a. "consumer key". Required and read-only.
+
+=head2 secret
+
+The application secret a.k.a. "consumer secret". Required and read-only.
+
+=head2 access_token
+
+  $xing = $xing->access_token($access_token);
+  $access_token = $xing->access_token;
+
+Access token as returned at the end of the OAuth process.
+Required for all methods except L</login> and L</auth>.
+
+=head2 access_secret
+
+  $xing = $xing->access_secret($access_secret);
+  $access_secret = $xing->access_secret;
+
+Access secret as returned at the end of the OAuth process.
+Required for all methods except L</login> and L</auth>.
+
+=head2 user_id
+
+The scrambled XING user id as returned (and set) by the L</auth> method.
+Your application will need to remember this because it serves as an entry
+point to most of the data calls.
+
+=head2 access_credentials
+
+  $xing = $xing->access_credentials(
+    $access_token, $access_secret, $user_id
+  );
+  ($access_token, $access_secret, $user_id) =
+    $xing->access_credentials;
+
+Convenience access attribute accessor, for getting and setting
+L</access_token>, L</access_secret> and L</user_id> in one go.
+
+Once authorization has completed, L</access_token>, L</access_secret> and
+L</user_id> are the only variable attributes, that are needed to use all
+API functions. A web application might choose to store only these three
+values in a session, instead of the whole object.
+
+=head2 user_agent
+
+  $xing = $xing->user_agent('MyApp Agent/23');
+  $user_agent = $xing->user_agent;
+
+Set or get the user agent string for the request.
+
+Default: C<WebService::XING/$VERSION (Perl)>
+
+=head2 request_timeout
+
+  $xing = $xing->request_timeout(10);
+  $request_timeout = $xing->request_timeout;
+
+Maximum time in seconds to wait for a response.
+
+Default: C<30>
+
+=head2 json
+
+An object instance of a JSON class.
+
+Default: L<< JSON->new->utf8 >>. Uses L<JSON::XS> if available.
+
+=head2 warn
+
+  $xing->warn(sub { $log->write(@_) });
+
+A reference to a C<sub>, that handles C<warn>ings.
+
+Default: C<sub { Carp::carp @_ }>
+
+=head2 die
+
+  $xing->die(sub { MyException->throw(@_ });
+
+A reference to a C<sub>, that handles C<die>s.
+
+Default: C<sub { Carp::croak @_ }>
+
+=head2 base_url
+
+Web address of the XING API server. Do not change unless you know what
+you are doing.
+
+Default: C<https://api.xing.com>
+
+=head2 request_token_resource
+
+Resource where to receive an OAuth request token. Do not change without
+reason.
+
+Default: F</v1/request_token>
+
+=head2 authorize_resource
+
+Resource where the user has to be redirected in order to authorize
+access for the consumer. Do not change without reason.
+
+Default: F</v1/authorize>
+
+=head2 access_token_resource
+
+Resource where to receive an OAuth access token. Do not change without
+reason.
+
+Default: F</v1/access_token>
+
+=head1 METHODS
+
+All methods are called with named arguments - or in other words - with
+a list of key-value-pairs.
+
+All methods return a L<WebService::XING::Response> object on success.
+
+All methods except L</login> and L</auth> return a
+L<WebService::XING::Error> object (which is actually a child class of
+L<WebService::XING::Response>) on failure. A method may L</die>
+if called inaccurately (e.g. with missing arguments).
+
+When the method documentation mentions a C<$bool> argument, it means
+boolean in the way Perl handles it: C<undef>, "" and C<0> being C<false>
+and everything else C<true>.
+
+=head2 new
+
+  my $xing = WebService::XING->new(
+    key => $CUSTOMER_KEY,
+    secret => $CUSTOMER_SECRET,
+    access_token => $access_token,
+    access_secret => $access_secret,
+  );
+
+The object constructor requires L</key> and L</secret> to be set, and
+for all methods besides L</login> and L</auth> also L</access_token> and
+L</access_secret>. Any other L<attribute|/ATTRIBUTES> can be set here as
+well.
+
+=head2 login
+
+  $res = $xing->login or die $res;
+  my $c = $res->content;
+  my ($auth_url, $token, $secret) = @c{qw(url token token_secret)};
+
+or
+
+  $res = $xing->login(callback => $callback_url) or die $res;
+  ...
+
+OAuth handshake step 1: Obtain a request token.
+
+If a callback url is given, the user will be re-directed back to that
+location from the XING authorization page after successfull completion
+of OAuth handshake step 2, otherwise (or if callback has the value
+C<oob>) a PIN code (C<oauth_verifier>) is displayed to the user on the
+XING authorization page, that must be entered in the consuming
+application.
+
+An C<undef> value is returned to indicate an error, the L</error>
+attribute contains a L<WebServive::XING::Error> object for further
+investigation.
+
+The L<content property|WebService::XING::Response/content> of the
+L<response|WebService::XING::Response> contains a hash with the 
+following elements:
+
+=over
+
+=item C<url>:
+
+The XING authorization URL. For the second step of the OAuth handshake
+the user must be redirected to that location.
+
+=item C<token>:
+
+The request token. Needed in L</auth>.
+
+=item C<token_secret>:
+
+The request token secret. Needed in L</auth>.
+
+=back
+
+=head2 auth
+
+  $xing->auth(
+    token => $token,
+    token_secret => $token_secret,
+    verifier => $verifier,
+  );
+
+OAuth handshake step 3: Obtain an access token.
+Requires a list of the following three named parameters:
+
+=over
+
+=item C<token>:
+
+The B<request token> as returned in the response of a successfull
+L<login> call.
+
+=item C<token_secret>:
+
+The B<request token_secret> as returned in the response of a successfull
+L<login> call.
+
+=item C<verifier>:
+
+The OAuth verifier, that is provided to the callback as the
+C<oauth_verifier> parameter - or that is displayed to the user for an
+out-of-band authorization.
+
+=back
+
+The L<content property|WebService::XING::Response/content> of the
+L<response|WebService::XING::Response> contains a hash with the 
+following elements:
+
+=over
+
+=item C<token>:
+
+The access token.
+
+=item C<token_secret>:
+
+The access token secret.
+
+=item C<user_id>:
+
+The scrambled XING user id.
+
+=back
+
+These three values are also stored in the object instance, so it is
+not strictly required to store them. It might be useful for a web
+application though, to keep only these access credentials in a
+session, rather than the whole L<WebService::XING> object.
+
+=head2 get_user_profile
+
+  $res = $xing->get_user_profile(id => $id, fields => \@fields);
+
+See L<https://dev.xing.com/docs/get/users/:id>
+
+=head2 create_status_message
+
+  $res = $xing->create_status_message(id => $id, message => $message);
+
+See L<https://dev.xing.com/docs/post/users/:id/status_message>
+
+=head2 get_profile_message
+
+  $res = $xing->get_profile_message(user_id => $id);
+
+See L<https://dev.xing.com/docs/get/users/:user_id/profile_message>
+
+=head2 update_profile_message
+
+  $res = $xing->update_profile_message(
+    user_id => $id, message => $message, public => $bool
+  );
+
+See L<https://dev.xing.com/docs/put/users/:user_id/profile_message>
+
+=head2 get_contacts
+
+  $res = $xing->get_contacts(
+    user_id => $id,
+    limit => $limit, offset => $offset, order_by => $order_by,
+    user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/contacts>
+
+=head2 get_shared_contacts
+
+  $res = $xing->get_shared_contacts(
+    user_id => $id,
+    limit => $limit, offset => $offset, order_by => $order_by,
+    user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/contacts/shared>
+
+=head2 get_incoming_contact_requests
+
+  $res = $xing->get_incoming_contact_requests(
+    user_id => $id,
+    limit => $limit, offset => $offset,
+    user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/contact_requests>
+
+=head2 get_sent_contact_requests
+
+  $res = $xing->get_sent_contact_requests(
+    user_id => $id, limit => $limit, offset => $offset
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/contact_requests/sent>
+
+=head2 create_contact_request
+
+  $res = $xing->create_contact_request(
+    user_id => $id, message => $message
+  );
+
+See L<https://dev.xing.com/docs/post/users/:user_id/contact_requests>
+
+=head2 accept_contact_request
+
+  $res = $xing->accept_contact_request(
+    id => $sender_id, user_id => $recipient_id
+  );
+
+See L<https://dev.xing.com/docs/put/users/:user_id/contact_requests/:id/accept>
+
+=head2 delete_contact_request
+
+  $res = $xing->delete_contact_request(
+    id => $sender_id, user_id => $recipient_id
+  );
+
+See L<https://dev.xing.com/docs/delete/users/:user_id/contact_requests/:id>
+
+=head2 get_contact_paths
+
+  $res = $xing->get_contact_paths(
+    user_id => $id,
+    other_user_id => $other_user_id,
+    all_paths => $bool,
+    user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/network/:other_user_id/paths>
+
+=head2 get_bookmarks
+
+  $res = $xing->get_bookmarks(
+    user_id => $id,
+    limit => $limit, offset => $offset,
+    user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/bookmarks>
+
+=head2 create_bookmark
+
+  $res = $xing->create_bookmark(id => $id, user_id => $id);
+
+See L<https://dev.xing.com/docs/put/users/:user_id/bookmarks/:id>
+
+=head2 delete_bookmark
+
+  $res = $xing->delete_bookmark(id => $id, user_id => $id);
+
+See L<https://dev.xing.com/docs/delete/users/:user_id/bookmarks/:id>
+
+=head2 get_network_feed
+
+  $res = $xing->get_network_feed(
+    user_id => $id,
+    aggregate => $bool,
+    since => $date,
+    user_fields => \@user_fields
+  );
+
+  $res = $xing->get_network_feed(
+    user_id => $id,
+    aggregate => $bool,
+    until => $date,
+    user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/network_feed>
+
+=head2 get_user_feed
+
+  $res = $xing->get_user_feed(
+    user_id => $id,
+    since => $date,
+    user_fields => \@user_fields
+  );
+
+  $res = $xing->get_user_feed(
+    user_id => $id,
+    until => $date,
+    user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/users/:id/feed>
+
+=head2 get_activity
+
+  $res = $xing->get_activity(id => $id, user_fields => \@user_fields);
+
+See L<https://dev.xing.com/docs/get/activities/:id>
+
+=head2 share_activity
+
+  $res = $xing->share_activity(id => $id, text => $text);
+
+See L<https://dev.xing.com/docs/post/activities/:id/share>
+
+=head2 delete_activity
+
+  $res = $xing->delete_activity(id => $id);
+
+See L<https://dev.xing.com/docs/delete/activities/:id>
+
+=head2 get_activity_comments
+
+  $res = $xing->get_activity_comments(
+    activity_id => $activity_id,
+    limit => $limit, offset => $offset,
+    user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/activities/:activity_id/comments>
+
+=head2 create_activity_comment
+
+  $res = $xing->create_activity_comment(
+    activity_id => $activity_id,
+    text => $text
+  );
+
+See L<https://dev.xing.com/docs/post/activities/:activity_id/comments>
+
+=head2 delete_activity_comment
+
+  $res = $xing->delete_activity_comment(
+    activity_id => $activity_id,
+    id => $id
+  );
+
+See L<https://dev.xing.com/docs/delete/activities/:activity_id/comments/:id>
+
+=head2 get_activity_likes
+
+  $res = $xing->get_activity_likes(
+    activity_id => $activity_id,
+    limit => $limit, offset => $offset,
+    user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/activities/:activity_id/likes>
+
+=head2 create_activity_like
+
+  $res = $xing->create_activity_like(activity_id => $activity_id);
+
+See L<https://dev.xing.com/docs/put/activities/:activity_id/like>
+
+=head2 delete_activity_like
+
+  $res = $xing->delete_activity_like(activity_id => $activity_id);
+
+See L<https://dev.xing.com/docs/delete/activities/:activity_id/like>
+
+=head2 get_profile_visits
+
+  $res = $xing->create_profile_visit(
+    user_id => $id,
+    limit => $limit, offset => $offset,
+    since => $date,
+    strip_html => $bool
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/visits>
+
+=head2 create_profile_visit
+
+  $res = $xing->get_profile_visits(user_id => $id);
+
+See L<https://dev.xing.com/docs/post/users/:user_id/visits>
+
+=head2 get_recommended_users
+
+  $res = $xing->get_recommended_users(
+    user_id => $id,
+    limit => $limit, offset => $offset,
+    similar_user_id => $similar_user_id,
+    user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/network/recommendations>
+
+=head2 create_invitations
+
+  $res = $xing->create_invitations(
+    to_emails => \@to_emails,
+    message => $message,
+    user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/post/users/invite>
+
+=head2 update_geo_location
+
+  $res = $xing->update_geo_location(
+    user_id => $id,
+    accuracy => $accuracy,
+    latitude => $latitude, longitude => $longitude,
+    ttl => $ttl
+  );
+
+See L<https://dev.xing.com/docs/put/users/:user_id/geo_location>
+
+=head2 get_nearby_users
+
+  $res = $xing->get_nearby_users(
+    user_id => $id,
+    age => $age,
+    radius => $radius,
+    user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/nearby_users>
+
+=head2 request
+
+  $res = $xing->request($method => $resource, @args);
+
+Call any API function:
+
+=over
+
+=item C<$method>:
+
+C<GET>, C<POST>, C<PUT> or C<DELETE>.
+
+=item C<$resource>:
+
+An api resource, e.g. F</v1/users/me>.
+
+=item C<@args>:
+
+A list of named arguments, e.g. C<< id => 'me', text => 'Blah!' >>.
+
+=back
+
 =head1 SEE ALSO
 
-L<WebService::XING::Response>, L<WebService::XING::Error>
+L<WebService::XING::Response>, L<WebService::XING::Error>,
 L<https://dev.xing.com/>
 
 =head1 AUTHOR

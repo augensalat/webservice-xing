@@ -12,6 +12,7 @@ test_requires 'Test::Exception';
 
 requires 'HTTP::Headers';
 requires 'HTTP::Request';
+requires 'JSON' => 2;
 requires 'LWP::UserAgent';
 requires 'Mo' => 0.30;
 requires 'Net::OAuth';

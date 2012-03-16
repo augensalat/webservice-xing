@@ -442,7 +442,7 @@ Version 0.000
 
 =head1 DESCRIPTION
 
-C<WebService::XING> is the Perl interface to the XING API. It supports
+C<WebService::XING> is a Perl client library for the XING API. It supports
 the whole range of functions described under L<https://dev.xing.com/>.
 
 =head2 Alpha Software Warning

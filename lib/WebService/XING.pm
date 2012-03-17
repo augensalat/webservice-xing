@@ -31,13 +31,11 @@ has key => (is => 'ro', required => 1);
 
 has secret => (is => 'ro', required => 1);
 
-has access_token => (builder => '_build_access_token', chain => 1);
-sub _build_access_token { $_[0]->die->('access_token is undefined') }
+has access_token => (chain => 1);
 
-has access_secret => (builder => '_build_access_secret', chain => 1);
-sub _build_access_secret { $_[0]->die->('access_secret is undefined') }
+has access_secret => (chain => 1);
 
-has 'user_id';
+has user_id => (chain => 1);
 
 sub access_credentials {
     my $self = shift;
@@ -45,7 +43,7 @@ sub access_credentials {
     return ($self->access_token, $self->access_secret, $self->user_id)
         unless @_;
 
-    return $self->access_token($_[0])->access_secret($_[1]);
+    return $self->access_token($_[0])->access_secret($_[1])->user_id($_[2]);
 }
 
 has user_agent => (builder => '_build_user_agent', chain => 1);

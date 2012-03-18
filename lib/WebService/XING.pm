@@ -10,6 +10,7 @@ use HTTP::Request;
 use Mo 0.30 qw(builder chain is required);
 use Net::OAuth;
 use URI;
+use WebService::XING::Function;
 use WebService::XING::Error;
 use WebService::XING::Response;
 
@@ -23,6 +24,96 @@ our @CARP_NOT = qw(Mo::builder Mo::chain Mo::is Mo::required);
 sub _nonce ();
 sub _missing_parameter ($$$);
 sub _invalid_parameter ($$$);
+
+my @FUNCTAB = (
+    # User Profiles
+    get_user_profile =>
+        [GET => '/v1/users/:id', '@fields'],
+
+    # Status Messages
+    create_status_message =>
+        [POST => '/v1/users/:id/status_message', '!message'],
+
+    # Profile Messages
+    get_profile_message =>
+        [GET => '/v1/users/:user_id/profile_message'],
+    update_profile_message =>
+        [PUT => '/v1/users/:user_id/profile_message', '!message', '?public=1'],
+
+    # Contacts
+    get_contacts =>
+        [GET => '/v1/users/:user_id/contacts', 'limit', 'offset', 'order_by', '@user_fields'],
+    get_shared_contacts =>
+        [GET => '/v1/users/:user_id/contacts/shared', 'limit', 'offset', 'order_by', '@user_fields'],
+
+    # Contact Requests
+    get_incoming_contact_requests =>
+        [GET => '/v1/users/:user_id/contact_requests', 'limit', 'offset', '@user_fields'],
+    get_sent_contact_requests =>
+        [GET => '/v1/users/:user_id/contact_requests/sent', 'limit', 'offset'],
+    create_contact_request =>
+        [POST => '/v1/users/:user_id/contact_requests', 'message'],
+    accept_contact_request =>
+        [PUT => '/v1/users/:user_id/contact_requests/:id/accept'],
+    delete_contact_request =>
+        [DELETE => '/v1/users/:user_id/contact_requests/:id'],
+
+    # Contact Path
+    get_contact_paths =>
+        [GET => '/v1/users/:user_id/network/:other_user_id/paths', '?all_paths=0', '@user_fields'],
+
+    # Bookmarks
+    get_bookmarks =>
+        [GET => '/v1/users/:user_id/bookmarks', 'limit', 'offset', '@user_fields'],
+    create_bookmark =>
+        [PUT => '/v1/users/:user_id/bookmarks/:id'],
+    delete_bookmark =>
+        [DELETE => '/v1/users/:user_id/bookmarks/:id'],
+
+    # Network Feed
+    get_network_feed =>
+        [GET => '/v1/users/:user_id/network_feed', '?aggregate=1', 'since', 'until', '@user_fields'],
+    get_user_feed =>
+        [GET => '/v1/users/:id/feed', 'since', 'until', '@user_fields'],
+    get_activity =>
+        [GET => '/v1/activities/:id', '@user_fields'],
+    share_activity =>
+        [POST => '/v1/activities/:id/share', 'text'],
+    delete_activity =>
+        [DELETE => '/v1/activities/:id'],
+    get_activity_comments =>
+        [GET => '/v1/activities/:activity_id/comments', 'limit', 'offset', '@user_fields'],
+    create_activity_comment =>
+        [POST => '/v1/activities/:activity_id/comments', 'text'],
+    delete_activity_comment =>
+        [DELETE => '/v1/activities/:activity_id/comments/:id'],
+    get_activity_likes =>
+        [GET => '/v1/activities/:activity_id/likes', 'limit', 'offset', '@user_fields'],
+    create_activity_like =>
+        [PUT => '/v1/activities/:activity_id/like'],
+    delete_activity_like =>
+        [DELETE => '/v1/activities/:activity_id/like'],
+
+    # Profile Visits
+    get_profile_visits =>
+        [GET => '/v1/users/:user_id/visits', 'limit', 'offset', 'since', '?strip_html=0'],
+    create_profile_visit =>
+        [POST => '/v1/users/:user_id/visits'],
+
+    # Recommendations
+    get_recommended_users =>
+        [GET => '/v1/users/:user_id/network/recommendations', 'limit', 'offset', 'similar_user_id', '@user_fields'],
+
+    # Invitations
+    create_invitations =>
+        [POST => '/v1/users/invite', '@to_emails', 'message', '@user_fields'],
+
+    # Geo Locations
+    update_geo_location =>
+        [PUT => '/v1/users/:user_id/geo_location', '!accuracy', '!latitude', '!longitude', 'ttl'],
+    get_nearby_users  =>
+        [GET => '/v1/users/:user_id/nearby_users', 'age', 'radius', '@user_fields'],
+);
 
 
 $Net::OAuth::PROTOCOL_VERSION = Net::OAuth::PROTOCOL_VERSION_1_0A;
@@ -51,6 +142,12 @@ sub _build_user_agent { __PACKAGE__ . '/' . $VERSION . ' (Perl)' }
 
 has request_timeout => (builder => '_build_request_timeout', chain => 1);
 sub _build_request_timeout { 30 }
+
+has functions => (is => 'ro', builder => '_build_functions');
+sub _build_functions {
+    my $x = 0;
+    return [ grep { $x ^= 1 } @FUNCTAB ];
+}
 
 has json => (builder => '_build_json', chain => 1);
 sub _build_json { JSON->new->utf8 }
@@ -81,6 +178,9 @@ has access_token_resource => (
     chain => 1,
 );
 sub _build_access_token_resource { '/v1/access_token' }
+
+has _functab => (is => 'ro', builder => '_build__functab');
+sub _build__functab { return { @FUNCTAB } }
 
 has _ua => (builder => '_build__ua');
 sub _build__ua {
@@ -158,100 +258,24 @@ sub auth {
     );
 }
 
-my %APITAB = (
-    # User Profiles
-    get_user_profile =>
-        [GET => '/v1/users/:id', '@fields'],
+sub function {
+    my ($self, $name) = @_;
+    my $f = $self->_functab->{$name}
+        or return undef;
+    my ($method, $resource, @params) = @$f;
 
-    # Status Messages
-    create_status_message =>
-        [POST => '/v1/users/:id/status_message', '!message'],
-
-    # Profile Messages
-    get_profile_message =>
-        [GET => '/v1/users/:user_id/profile_message'],
-    update_profile_message =>
-        [PUT => '/v1/users/:user_id/profile_message', '!message', '?public'],
-
-    # Contacts
-    get_contacts =>
-        [GET => '/v1/users/:user_id/contacts', 'limit', 'offset', 'order_by', '@user_fields'],
-    get_shared_contacts =>
-        [GET => '/v1/users/:user_id/contacts/shared', 'limit', 'offset', 'order_by', '@user_fields'],
-
-    # Contact Requests
-    get_incoming_contact_requests =>
-        [GET => '/v1/users/:user_id/contact_requests', 'limit', 'offset', '@user_fields'],
-    get_sent_contact_requests =>
-        [GET => '/v1/users/:user_id/contact_requests/sent', 'limit', 'offset'],
-    create_contact_request =>
-        [POST => '/v1/users/:user_id/contact_requests', 'message'],
-    accept_contact_request =>
-        [PUT => '/v1/users/:user_id/contact_requests/:id/accept'],
-    delete_contact_request =>
-        [DELETE => '/v1/users/:user_id/contact_requests/:id'],
-
-    # Contact Path
-    get_contact_paths =>
-        [GET => '/v1/users/:user_id/network/:other_user_id/paths', '?all_paths', '@user_fields'],
-
-    # Bookmarks
-    get_bookmarks =>
-        [GET => '/v1/users/:user_id/bookmarks', 'limit', 'offset', '@user_fields'],
-    create_bookmark =>
-        [PUT => '/v1/users/:user_id/bookmarks/:id'],
-    delete_bookmark =>
-        [DELETE => '/v1/users/:user_id/bookmarks/:id'],
-
-    # Network Feed
-    get_network_feed =>
-        [GET => '/v1/users/:user_id/network_feed', '?aggregate', 'since', 'until', '@user_fields'],
-    get_user_feed =>
-        [GET => '/v1/users/:id/feed', 'since', 'until', '@user_fields'],
-    get_activity =>
-        [GET => '/v1/activities/:id', '@user_fields'],
-    share_activity =>
-        [POST => '/v1/activities/:id/share', 'text'],
-    delete_activity =>
-        [DELETE => '/v1/activities/:id'],
-    get_activity_comments =>
-        [GET => '/v1/activities/:activity_id/comments', 'limit', 'offset', '@user_fields'],
-    create_activity_comment =>
-        [POST => '/v1/activities/:activity_id/comments', 'text'],
-    delete_activity_comment =>
-        [DELETE => '/v1/activities/:activity_id/comments/:id'],
-    get_activity_likes =>
-        [GET => '/v1/activities/:activity_id/likes', 'limit', 'offset', '@user_fields'],
-    create_activity_like =>
-        [PUT => '/v1/activities/:activity_id/like'],
-    delete_activity_like =>
-        [DELETE => '/v1/activities/:activity_id/like'],
-
-    # Profile Visits
-    get_profile_visits =>
-        [GET => '/v1/users/:user_id/visits', 'limit', 'offset', 'since', '?strip_html'],
-    create_profile_visit =>
-        [POST => '/v1/users/:user_id/visits'],
-
-    # Recommendations
-    get_recommended_users =>
-        [GET => '/v1/users/:user_id/network/recommendations', 'limit', 'offset', 'similar_user_id', '@user_fields'],
-
-    # Invitations
-    create_invitations =>
-        [POST => '/v1/users/invite', '@to_emails', 'message', '@user_fields'],
-
-    # Geo Locations
-    update_geo_location =>
-        [PUT => '/v1/users/:user_id/geo_location', '!accuracy', '!latitude', '!longitude', 'ttl'],
-    get_nearby_users  =>
-        [GET => '/v1/users/:user_id/nearby_users', 'age', 'radius', '@user_fields'],
-);
+    return WebService::XING::Function->new(
+        name => $name,
+        method => $method,
+        resource => $resource,
+        params_in => \@params
+    );
+}
 
 sub AUTOLOAD {
     my ($self, %p) = @_;
     my ($package, $action) = our $AUTOLOAD =~ /^([\w\:]+)\:\:(\w+)$/;
-    my $row = $APITAB{$action}
+    my $row = $self->_functab->{$action}
         or $self->die->(qq{Can't locate object method "$action" via package "$package"});
     my ($method, $resource, @params) = @$row;
     my $p;
@@ -347,19 +371,19 @@ sub request {
 
 ### Internal
 
-# $self->_scour_args(\%args, @array_of_known_argument_names)
+# $self->_scour_args($package, $sub, \%args, @array_of_known_argument_names)
 # Scour argument list, die on missing or unknown arguments.
 sub _scour_args {
-    my ($self, $package, $action, $args) = (shift, shift, shift, shift);
+    my ($self, $package, $sub, $args) = (shift, shift, shift, shift);
     my @p;
 
     for (@_) {
-        my ($flag, $key) = /^([\@\!\?]?)(\w+)$/;
+        my ($flag, $key, $default) = /^([\@\!\?]?)(\w+)(?:=(.*))?$/;
         my $value = delete $args->{$key};
 
         if (defined $value) {
             if (ref $value eq 'ARRAY') {
-                $self->die->(_invalid_parameter($key, $package, $action))
+                $self->die->(_invalid_parameter($key, $package, $sub))
                     unless $flag eq '@';
                 push @p, $key, join(',', @$value);
             }
@@ -371,19 +395,19 @@ sub _scour_args {
             }
         }
         else {
-            $self->die->(_missing_parameter($key, $package, $action))
+            $self->die->(_missing_parameter($key, $package, $sub))
                 if $flag eq '!';
         }
     }
 
-    $self->die->(_invalid_parameter((keys %$args)[0], $package, $action))
+    $self->die->(_invalid_parameter((keys %$args)[0], $package, $sub))
         if %$args;
 
     return @p;
 }
 
 # _nonce
-# Create a random string fast.
+# Create a random string faaast.
 my @CHARS = ('_', '0' .. '9', 'A' .. 'Z', 'a' .. 'z');
 
 sub _nonce () {
@@ -443,11 +467,18 @@ Version 0.000
 C<WebService::XING> is a Perl client library for the XING API. It supports
 the whole range of functions described under L<https://dev.xing.com/>.
 
+=head2 Method Introspection
+
+An application can query a list of all available API functions together
+with their parameters. See the L</functions> attribute and the
+L</function> method for more information.
+
 =head2 Alpha Software Warning
 
-This software is released under the "Release Early - Release Often" motto,
-and should not be considered stable. You are welcome to check it out, but
-be prepared: it might kill your kittens!
+This software is distributed under the "Release Early - Release Often"
+motto. It is a very young project and should not be considered stable.
+You are welcome to check it out, but be prepared: it might kill your
+kittens!
 
 Moreover at the time of writing, the XING API is in a closed beta test
 phase, and still has a couple of bugs.
@@ -459,8 +490,8 @@ All attributes can be set in the L<constructor|/new>.
 All writeable attributes can be used as setters and getters of the
 object instance.
 
-All writeable attributes return the object in set mode, so they can be
-chained. This example does virtually the same as in the L</SYNOPSIS>
+All writeable attributes return the object in set mode to make them
+chainable. This example does virtually the same as in the L</SYNOPSIS>
 above:
 
   $res = WebService::XING->new(
@@ -477,10 +508,10 @@ above:
 
 All attributes with a default value are "lazy": They get their value when
 they are read the first time, unless they are already initialized. To get
-the default value, an attribute calls an init method called
+the default value, an attribute calls a builder method called
 C<"_build_" . $attribute_name>.  This gives a sub class of
 C<WebService::XING> the opportunity to override any default value by
-providing a custom init method.
+providing a custom builder method.
 
 =head2 key
 
@@ -508,9 +539,10 @@ Required for all methods except L</login> and L</auth>.
 
 =head2 user_id
 
+  $xing = $xing->user_id($user_id);
+  $user_id = $xing->user_id;
+
 The scrambled XING user id as returned (and set) by the L</auth> method.
-Your application will need to remember this because it serves as an entry
-point to most of the data calls.
 
 =head2 access_credentials
 
@@ -546,7 +578,16 @@ Maximum time in seconds to wait for a response.
 
 Default: C<30>
 
+=head2 functions
+
+A read-only property providing a reference to a list of all the API's
+functions. The order is the same as documented under
+L<https://dev.xing.com/docs/resources>.
+
 =head2 json
+
+  $xing = $xing->json(My::JSON->new);
+  $json = $xinf->json;
 
 An object instance of a JSON class.
 
@@ -554,21 +595,28 @@ Default: L<< JSON->new->utf8 >>. Uses L<JSON::XS> if available.
 
 =head2 warn
 
-  $xing->warn(sub { $log->write(@_) });
+  $xing = $xing->warn(sub { $log->write(@_) });
+  $xing->warn->($warning);
 
 A reference to a C<sub>, that handles C<warn>ings.
 
 Default: C<sub { Carp::carp @_ }>
+Used by the library to issue warnings.
 
 =head2 die
 
-  $xing->die(sub { MyException->throw(@_ });
+  $xing = $xing->die(sub { MyException->throw(@_ });
+  $xing->die->($famous_last_words);
 
 A reference to a C<sub>, that handles C<die>s.
+Used by the library for dying.
 
 Default: C<sub { Carp::croak @_ }>
 
 =head2 base_url
+
+  $xing = $xing->base_url($test_url);
+  $base_url = $xing->base_url;
 
 Web address of the XING API server. Do not change unless you know what
 you are doing.
@@ -577,6 +625,9 @@ Default: C<https://api.xing.com>
 
 =head2 request_token_resource
 
+  $xing = $xing->request_token_resource($request_token_resource);
+  $request_token_resource = $xing->request_token_resource;
+
 Resource where to receive an OAuth request token. Do not change without
 reason.
 
@@ -584,12 +635,18 @@ Default: F</v1/request_token>
 
 =head2 authorize_resource
 
+  $xing = $xing->authorize_resource($authorize_resource);
+  $authorize_resource = $xing->authorize_resource;
+
 Resource where the user has to be redirected in order to authorize
 access for the consumer. Do not change without reason.
 
 Default: F</v1/authorize>
 
 =head2 access_token_resource
+
+  $xing = $xing->access_token_resource($access_token_resource);
+  $access_token_resource = $xing->access_token_resource;
 
 Resource where to receive an OAuth access token. Do not change without
 reason.
@@ -601,10 +658,11 @@ Default: F</v1/access_token>
 All methods are called with named arguments - or in other words - with
 a list of key-value-pairs.
 
-All methods return a L<WebService::XING::Response> object on success.
+All methods except L</new> and L</function> return a
+L<WebService::XING::Response> object on success.
 
-All methods except L</login> and L</auth> return a
-L<WebService::XING::Error> object (which is actually a child class of
+All methods except L</new>, L</function>, L</login> and L</auth> return
+a L<WebService::XING::Error> object (which is actually a child class of
 L<WebService::XING::Response>) on failure. A method may L</die>
 if called inaccurately (e.g. with missing arguments).
 
@@ -625,6 +683,13 @@ The object constructor requires L</key> and L</secret> to be set, and
 for all methods besides L</login> and L</auth> also L</access_token> and
 L</access_secret>. Any other L<attribute|/ATTRIBUTES> can be set here as
 well.
+
+=head2 function
+
+  $function = $xing->function($name);
+
+Get a L<WebService::XING::Function> object for the given function C<$name>.
+Return C<undef> if a function with the given function C<$name> is unknown.
 
 =head2 login
 

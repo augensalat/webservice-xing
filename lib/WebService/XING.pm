@@ -326,6 +326,7 @@ sub request {
     if ($method ~~ ['POST', 'PUT']) {
         my $u = URI->new('http:');
         if (@args) {
+            push @extra, extra_params => { @args };
             $u->query_form(@args);
             $content = $u->query;
             $content =~ s/(?<!%0D)%0A/%0D%0A/g;

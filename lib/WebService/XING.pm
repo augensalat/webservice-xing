@@ -150,7 +150,7 @@ sub _build_functions {
 }
 
 has json => (builder => '_build_json', chain => 1);
-sub _build_json { JSON->new->utf8 }
+sub _build_json { JSON->new->utf8->allow_nonref }
 
 has warn => (builder => '_build_warn', chain => 1);
 sub _build_warn { sub { Carp::carp @_ } }
@@ -592,7 +592,8 @@ L<https://dev.xing.com/docs/resources>.
 
 An object instance of a JSON class.
 
-Default: L<< JSON->new->utf8 >>. Uses L<JSON::XS> if available.
+Default: L<< JSON->new->utf8->allow_nonref >>.
+Uses L<JSON::XS> if available.
 
 =head2 warn
 

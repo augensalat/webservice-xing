@@ -297,7 +297,7 @@ sub request {
     my ($self, $method, $resource, @args) = @_;
     my (@extra, $type);
     my $url = $self->base_url . $resource;
-    my $content = '';
+    my $reqbody = '';
     my $headers = HTTP::Headers->new;
 
     if ($resource eq $self->request_token_resource) {
@@ -328,12 +328,12 @@ sub request {
         if (@args) {
             push @extra, extra_params => { @args };
             $u->query_form(@args);
-            $content = $u->query;
-            $content =~ s/(?<!%0D)%0A/%0D%0A/g;
+            $reqbody = $u->query;
+            $reqbody =~ s/(?<!%0D)%0A/%0D%0A/g;
         }
         $headers->header(
             'Content-Type' => 'application/x-www-form-urlencoded',
-            'Content-Length' => length $content
+            'Content-Length' => length $reqbody
         );
     }
     elsif (@args) {
@@ -357,16 +357,25 @@ sub request {
 
     $headers->header(Authorization => $oauth_req->to_authorization_header);
 
-    my $res = $self->_ua->request(HTTP::Request->new($method, $url, $headers, $content));
+    my $res = $self->_ua->request(HTTP::Request->new($method, $url, $headers, $reqbody));
 
     $headers = $res->headers;
+
+    # The XING API has a nasty bug currently: Even though it always pretends
+    # to reply with JSON in the body, it actually sends plain text messages
+    # sometimes.
+
+    my $resbody;
+
+    if ($headers->content_type eq 'application/json') {
+        $resbody = eval { $self->json->decode($res->decoded_content) };
+    }
 
     return WebService::XING::Response->new(
         code => $res->code,
         message => $res->message,
         headers => $headers,
-        content => $headers->content_type eq 'application/json' ?
-            $self->json->decode($res->decoded_content) : $res->decoded_content,
+        content => $resbody // $res->decoded_content,
     );
 }
 

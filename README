@@ -3,14 +3,71 @@ DESCRIPTION
 WebService::XING is a Perl client library for the XING API. It supports
 the whole range of functions described under https://dev.xing.com/.
 
+
 INSTALLATION
 
 To install this module, run the following commands:
 
-	perl Makefile.PL
-	make
-	make test
-	make install
+  perl Makefile.PL
+  make
+  make test
+  make install
+
+
+USAGE
+
+  use strict;
+  use warnings;
+  use WebService::XING;
+  use YAML::Any 'Dump';
+
+
+  my $KEY = '...';      # OAuth consumer key
+  my $SECRET = '...';   # OAuth consumer secret
+
+  my $xing = WebService::XING->new(key => $KEY, secret => $SECRET);
+
+  authenticate($xing, @ARGV) or exit;
+
+  my $res; $res = $xing->get_user_details(id => 'me') or die $res;
+
+  print Dump $res->content;
+
+
+  sub authenticate {
+    my $xing = shift;
+    my ($atoken, $asecret, $user_id) = @_;
+
+    return $xing->access_credentials($atoken, $asecret, $user_id)
+      if $atoken && $asecret && $user_id;
+
+    my $res; $res = $xing->login or die $res;
+    my $c = $res->content;
+    my ($auth_url, $rtoken, $rsecret) = @$c{qw(url token token_secret)};
+
+    print qq'Now visit "$auth_url", click "OK" and enter the PIN\nhere > ';
+
+    my $pin = <STDIN>;
+
+    chomp $pin;
+    $res = $xing->auth(
+      token => $rtoken, token_secret => $rsecret, verifier => $pin
+    ) or die $res;
+
+    $c = $res->content;
+
+    print "Now call the program again with the access credentials:\n\n";
+    print "$0 @$c{qw(token token_secret user_id)}\n\n";
+
+    return 0;
+  }
+
+
+EXAMPLES
+
+The distribution tarball includes a fully self-contained web application.
+You need Mojolicious (http://mojolicio.us/) in order to run it.
+
 
 SUPPORT AND DOCUMENTATION
 

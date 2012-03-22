@@ -56,7 +56,7 @@ The HTTP status L</code>.
 
 =item Boolean context:
 
-  $res = $xing->get_user_profile or die $res;
+  $res = $xing->get_user_details or die $res;
 
 Is C<true> for L</code> E<lt> 400, otherwise C<false>.
 Calls L</is_success> behind the curtain.

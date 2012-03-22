@@ -27,7 +27,7 @@ sub _invalid_parameter ($$$);
 
 my @FUNCTAB = (
     # User Profiles
-    get_user_profile =>
+    get_user_details =>
         [GET => '/v1/users/:id', '@fields'],
 
     # Status Messages
@@ -467,7 +467,7 @@ Version 0.000
     user_id => $user_id,
   );
 
-  $res = $xing->get_user_profile(id => 'me')
+  $res = $xing->get_user_details(id => 'me')
     or die $res;
 
   say "Hello, I'm ", $res->content->{users}->[0]->{display_name};
@@ -511,7 +511,7 @@ above:
     ->access_token($token)
     ->access_secret($secret)
     ->user_id($uid)
-    ->get_user_profile(id => 'me')
+    ->get_user_details(id => 'me')
       or die $res;
 
   say "Hello, I'm ", $res->content->{users}->[0]->{display_name};
@@ -803,9 +803,9 @@ not strictly required to store them. It might be useful for a web
 application though, to keep only these access credentials in a
 session, rather than the whole L<WebService::XING> object.
 
-=head2 get_user_profile
+=head2 get_user_details
 
-  $res = $xing->get_user_profile(id => $id, fields => \@fields);
+  $res = $xing->get_user_details(id => $id, fields => \@fields);
 
 See L<https://dev.xing.com/docs/get/users/:id>
 

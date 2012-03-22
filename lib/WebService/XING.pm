@@ -3,6 +3,7 @@ package WebService::XING;
 use 5.010;
 
 use Carp ();
+use Digest::SHA ();
 use JSON ();
 use LWP::UserAgent;
 use HTTP::Headers;  # ::Fast
@@ -21,7 +22,7 @@ our @CARP_NOT = qw(Mo::builder Mo::chain Mo::is Mo::required);
 
 # Prototypes
 
-sub _nonce ();
+sub nonce;
 sub _missing_parameter ($$$);
 sub _invalid_parameter ($$$);
 
@@ -349,7 +350,7 @@ sub request {
         request_method => $method,
         signature_method => 'HMAC-SHA1',
         timestamp => time,
-        nonce => _nonce,
+        nonce => nonce(@extra, $url),
         @extra,
     );
 
@@ -378,6 +379,8 @@ sub request {
         content => $resbody // $res->decoded_content,
     );
 }
+
+sub nonce { Digest::SHA::sha1_base64 time, $$, rand, @_; }
 
 ### Internal
 
@@ -414,19 +417,6 @@ sub _scour_args {
         if %$args;
 
     return @p;
-}
-
-# _nonce
-# Create a random string faaast.
-my @CHARS = ('_', '0' .. '9', 'A' .. 'Z', 'a' .. 'z');
-
-sub _nonce () {
-    my $s = "";
-    my $i = int(28 + rand 9);
-
-    do { $s .= $CHARS[rand @CHARS] } while --$i;
-
-    return $s;
 }
 
 sub _missing_parameter ($$$) {
@@ -1107,6 +1097,21 @@ An api resource, e.g. F</v1/users/me>.
 A list of named arguments, e.g. C<< id => 'me', text => 'Blah!' >>.
 
 =back
+
+=head1 FUNCTIONS
+
+=head2 nonce
+
+  $nonce = WebService::XING::nonce;
+  $nonce = WebService::XING::nonce($any, $kind, $of, @input);
+
+A function that creates a random string. While this is used internally,
+it is documented here, so you can use it if you like.
+Accepts any number of arbitrary volatile arguments to increase entropy.
+Works as a method too, with the nice side effect, that the object serves
+as entropy argument:
+
+  $nonce = $xing->nonce;
 
 =head1 SEE ALSO
 

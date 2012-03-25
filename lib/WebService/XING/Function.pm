@@ -23,6 +23,7 @@ sub _build_params {
         push @p, WebService::XING::Function::Parameter->new(
             name => $_,
             is_required => 1,
+            is_placeholder => 1,
         );
     }
 
@@ -44,6 +45,19 @@ sub _build_params {
 
     return \@p;
 }
+
+my $CODE = sub {
+    my $f = shift;
+
+    return sub {
+        my ($self, %p) = @_;
+
+        return $self->request($f->method, $self->_scour_args($f, \%p));
+    }
+};
+
+has code => (is => 'ro', builder => '_build_code');
+sub _build_code { $CODE->(shift) }
 
 1;
 
@@ -87,6 +101,13 @@ only.
 Read-only attribute providing a reference to an array of
 L<WebService::XING::Function::Parameter> objects, of which each describes
 a parameter.
+
+=head2 code
+
+Read-only attribute providing a code reference. This code is actually a
+closure method of the L<WebService::XING> class, that holds a reference
+to this L<WebService::XING::Function> object in order to validate the
+method arguments and to build the API request.
 
 =head1 SEE ALSO
 

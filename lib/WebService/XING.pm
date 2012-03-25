@@ -15,7 +15,7 @@ use WebService::XING::Function;
 use WebService::XING::Error;
 use WebService::XING::Response;
 
-our $VERSION = '0.000';
+our $VERSION = '0.001';
 
 our @CARP_NOT = qw(Mo::builder Mo::chain Mo::is Mo::required);
 @Carp::Internal{qw(Mo::builder Mo::chain Mo::is Mo::required)} = (1, 1, 1, 1);
@@ -183,6 +183,9 @@ sub _build_access_token_resource { '/v1/access_token' }
 has _functab => (is => 'ro', builder => '_build__functab');
 sub _build__functab { return { @FUNCTAB } }
 
+has _functions => (is => 'ro', builder => '_build__functions');
+sub _build__functions { return {} }
+
 has _ua => (builder => '_build__ua');
 sub _build__ua {
     my $self = shift;
@@ -205,9 +208,10 @@ sub _build__headers {
 
 sub login {
     my ($self, %args) = @_;
-    my @args = $self->_scour_args(__PACKAGE__, 'login', \%args, 'callback') ||
-               (callback => 'oob');
-    my $res = $self->request(POST => $self->request_token_resource, @args);
+    my $res = $self->request(
+        POST => $self->request_token_resource,
+        callback => $args{callback} || 'oob',
+    );
 
     $res->is_success or return $res;
 
@@ -232,9 +236,9 @@ sub login {
 
 sub auth {
     my ($self, %args) = @_;
-    my @args = $self->_scour_args(
-        __PACKAGE__, 'auth', \%args, qw(!token !token_secret !verifier)
-    );
+    my @args = map {
+        $_ => $args{$_} || $self->die->(_missing_parameter($_, ref $self, 'auth'))
+    } qw(token token_secret verifier);
     my $res = $self->request(POST => $self->access_token_resource, @args);
 
     $res->is_success or return $res;
@@ -261,35 +265,45 @@ sub auth {
 
 sub function {
     my ($self, $name) = @_;
-    my $f = $self->_functab->{$name}
-        or return undef;
+    my $f = $self->_functions->{$name};
+
+    return $f if $f;
+
+    $f = $self->_functab->{$name} or return undef;
+
     my ($method, $resource, @params) = @$f;
 
-    return WebService::XING::Function->new(
+    return $self->_functions->{$name} = WebService::XING::Function->new(
         name => $name,
         method => $method,
         resource => $resource,
-        params_in => \@params
+        params_in => \@params,
     );
 }
 
+sub can {
+    my ($self, $name) = @_;
+    my $code; $code = $self->SUPER::can($name) and return $code;
+    my $f = $self->function($name) or return undef;
+
+    no strict 'refs';
+
+    *$name = $code = $f->code;
+
+    return $code;
+}
+
 sub AUTOLOAD {
-    my ($self, %p) = @_;
-    my ($package, $action) = our $AUTOLOAD =~ /^([\w\:]+)\:\:(\w+)$/;
-    my $row = $self->_functab->{$action}
-        or $self->die->(qq{Can't locate object method "$action" via package "$package"});
-    my ($method, $resource, @params) = @$row;
-    my $p;
+    my $self = $_[0];   # do NOT shift!
+    my ($package, $name) = our $AUTOLOAD =~ /^([\w\:]+)\:\:(\w+)$/;
+    my $f = $self->function($name)
+        or $self->die->(qq{Can't locate object method "$name" via package "$package"});
 
-    for ($resource =~ /:(\w+)/g) {
-        defined($p = delete $p{$_})
-            or $self->die->(_missing_parameter($_, $package, $action));
-        $resource =~ s/:$_/$p/;
-    }
+    no strict 'refs';
 
-    my @p = $self->_scour_args($package, $action, \%p, @params);
+    *$AUTOLOAD = $f->code;
 
-    return $self->request($method, $resource, @p);
+    return $f->code->(@_);
 }
 
 sub DESTROY { }
@@ -384,39 +398,45 @@ sub nonce { Digest::SHA::sha1_base64 time, $$, rand, @_; }
 
 ### Internal
 
-# $self->_scour_args($package, $sub, \%args, @array_of_known_argument_names)
+# ($expanded_resource, @parameters) =
+#   $self->_scour_args($function_object, \%args);
 # Scour argument list, die on missing or unknown arguments.
 sub _scour_args {
-    my ($self, $package, $sub, $args) = (shift, shift, shift, shift);
-    my @p;
+    my ($self, $f, $args) = @_;
+    my $resource = $f->resource;
+    my @r;
 
-    for (@_) {
-        my ($flag, $key, $default) = /^([\@\!\?]?)(\w+)(?:=(.*))?$/;
+    for my $p (@{$f->params}) {
+        my $key = $p->name;
         my $value = delete $args->{$key};
 
         if (defined $value) {
             if (ref $value eq 'ARRAY') {
-                $self->die->(_invalid_parameter($key, $package, $sub))
-                    unless $flag eq '@';
-                push @p, $key, join(',', @$value);
+                $self->die->(_invalid_parameter($key, ref $self, $f->name))
+                    unless $p->is_list;
+                $value = join(',', @$value);
             }
-            elsif ($flag eq '?') {
-                push @p, $key, $value && $value ne 'false' ? 'true' : 'false';
+            elsif ($p->is_boolean) {
+                $value = $value && $value ne 'false' ? 'true' : 'false';
+            }
+
+            if ($p->is_placeholder) {
+                $resource =~ s/:$key/$value/;
             }
             else {
-                push @p, $key, $value;
+                push @r, $key, $value;
             }
         }
         else {
-            $self->die->(_missing_parameter($key, $package, $sub))
-                if $flag eq '!';
+            $self->die->(_missing_parameter($key, ref $self, $f->name))
+                if $p->is_required;
         }
     }
 
-    $self->die->(_invalid_parameter((keys %$args)[0], $package, $sub))
+    $self->die->(_invalid_parameter((keys %$args)[0], ref $self, $f->name))
         if %$args;
 
-    return @p;
+    return ($resource, @r);
 }
 
 sub _missing_parameter ($$$) {
@@ -443,7 +463,7 @@ WebService::XING - Perl Interface to the XING API
 
 =head1 VERSION
 
-Version 0.000
+Version 0.001
 
 =head1 SYNOPSIS
 
@@ -471,12 +491,11 @@ the whole range of functions described under L<https://dev.xing.com/>.
 
 An application can query a list of all available API functions together
 with their parameters. See the L</functions> attribute and the
-L</function> method for more information.
+L</function> and L</can> method for more information.
 
 =head2 Alpha Software Warning
 
-This software is distributed under the "Release Early - Release Often"
-motto. It is a very young project and should not be considered stable.
+This software is still very young and should not be considered stable.
 You are welcome to check it out, but be prepared: it might kill your
 kittens!
 
@@ -486,6 +505,9 @@ phase, and still has a couple of bugs.
 =head1 ATTRIBUTES
 
 All attributes can be set in the L<constructor|/new>.
+
+Attributes marked as "required and read-only" must be given in the
+L<constructor|/new>.
 
 All writeable attributes can be used as setters and getters of the
 object instance.
@@ -557,8 +579,9 @@ L</access_token>, L</access_secret> and L</user_id> in one go.
 
 Once authorization has completed, L</access_token>, L</access_secret> and
 L</user_id> are the only variable attributes, that are needed to use all
-API functions. A web application might choose to store only these three
-values in a session, instead of the whole object.
+API functions. An application must store these three values for later
+authentication, a web application might put them in a long lasting
+session.
 
 =head2 user_agent
 
@@ -580,8 +603,8 @@ Default: C<30>
 
 =head2 functions
 
-A read-only property providing a reference to a list of all the API's
-functions. The order is the same as documented under
+A read-only property providing a reference to a list of the names of all
+the API's functions. The order is the same as documented under
 L<https://dev.xing.com/docs/resources>.
 
 =head2 json
@@ -691,6 +714,14 @@ well.
 
 Get a L<WebService::XING::Function> object for the given function C<$name>.
 Return C<undef> if a function with the given function C<$name> is unknown.
+
+=head2 can
+
+  $code = $xing->can($name);
+
+Overrides L<UNIVERSAL/can>. Usually API functions are dynamically built
+at first time they are called. C<can> does the same, but rather than
+executing the method, it just returns a reference to it.
 
 =head2 login
 
@@ -1115,8 +1146,8 @@ as entropy argument:
 
 =head1 SEE ALSO
 
-L<WebService::XING::Response>, L<WebService::XING::Error>,
-L<https://dev.xing.com/>
+L<WebService::XING::Response>, L<WebService::XING::Function>,
+L<WebService::XING::Error>, L<https://dev.xing.com/>
 
 =head1 AUTHOR
 

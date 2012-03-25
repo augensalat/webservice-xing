@@ -8,6 +8,8 @@ has name => (is => 'ro', required => 1);
 
 has is_required => (is => 'ro');
 
+has is_placeholder => (is => 'ro');
+
 has is_boolean => (is => 'ro');
 
 has is_list => (is => 'ro');
@@ -41,6 +43,11 @@ Parameter name. Read-only.
 =head2 is_required
 
 Flag that is C<true> if parameter is required. Read-only.
+
+=head2 is_placeholder
+
+Flag that is C<true> if parameter is part of the resource. Logically a
+placeholder parameter always L</is_required>. Read-only.
 
 =head2 is_boolean
 

@@ -35,7 +35,7 @@ is "$f", 'create_foo_bar', 'stringifies correctly';
 
 is_deeply $f->params, [
     WebService::XING::Function::Parameter->new(
-        name => 'id', is_required => 1, default => undef
+        name => 'id', is_required => 1, is_placeholder => 1, default => undef
     ),
     WebService::XING::Function::Parameter->new(
         name => 'mumble', is_required => 1, default => undef
@@ -46,6 +46,8 @@ is_deeply $f->params, [
     WebService::XING::Function::Parameter->new(
         name => 'rumble', is_boolean => 1, default => 1
     ),
-], 'params list is built correctly';
+], 'function params list is built correctly';
+
+isa_ok $f->code, 'CODE', 'function code';
 
 done_testing;

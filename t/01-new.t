@@ -64,34 +64,61 @@ for (@$fp) {
 is_deeply $fp, [qw(user_id aggregate since until user_fields)],
     'parameter list elements stringify';
 
-is $fp->[0]->name, 'user_id', 'name of param 0';
-ok $fp->[0]->is_required, 'param 0 is required';
-ok !$fp->[0]->is_boolean, 'param 0 is not a boolean';
-ok !$fp->[0]->is_list, 'param 0 is not a list';
-ok !defined $fp->[0]->default, 'param 0 has no default';
+is $fp->[0]->name, 'user_id', 'name of param user_id';
+ok $fp->[0]->is_required, 'param user_id is required';
+ok $fp->[0]->is_placeholder, 'param user_id is placeholder';
+ok !$fp->[0]->is_boolean, 'param user_id is not a boolean';
+ok !$fp->[0]->is_list, 'param user_id is not a list';
+ok !defined $fp->[0]->default, 'param user_id has no default';
 
-is $fp->[1]->name, 'aggregate', 'name of param 1';
-ok !$fp->[1]->is_required, 'param 1 is not required';
-ok $fp->[1]->is_boolean, 'param 1 is a boolean';
-ok !$fp->[1]->is_list, 'param 1 is not a list';
-is $fp->[1]->default, 1, 'param 1 default == 1';
+is $fp->[1]->name, 'aggregate', 'name of param aggregate';
+ok !$fp->[1]->is_required, 'param aggregate is not required';
+ok !$fp->[1]->is_placeholder, 'param aggregate is not a placeholder';
+ok $fp->[1]->is_boolean, 'param aggregate is a boolean';
+ok !$fp->[1]->is_list, 'param aggregate is not a list';
+is $fp->[1]->default, 1, 'param aggregate default == 1';
 
-is $fp->[2]->name, 'since', 'name of param 2';
-ok !$fp->[2]->is_required, 'param 2 is not required';
-ok !$fp->[2]->is_boolean, 'param 2 is not a boolean';
-ok !$fp->[2]->is_list, 'param 2 is not a list';
-ok !defined $fp->[2]->default, 'param 2 has no default';
+is $fp->[2]->name, 'since', 'name of param since';
+ok !$fp->[2]->is_required, 'param since is not required';
+ok !$fp->[2]->is_placeholder, 'param since is not a placeholder';
+ok !$fp->[2]->is_boolean, 'param since is not a boolean';
+ok !$fp->[2]->is_list, 'param since is not a list';
+ok !defined $fp->[2]->default, 'param since has no default';
 
-is $fp->[3]->name, 'until', 'name of param 3';
-ok !$fp->[3]->is_required, 'param 3 is not required';
-ok !$fp->[3]->is_boolean, 'param 3 is not a boolean';
-ok !$fp->[3]->is_list, 'param 3 is not a list';
-ok !defined $fp->[3]->default, 'param 3 has no default';
+is $fp->[3]->name, 'until', 'name of param until';
+ok !$fp->[3]->is_required, 'param until is not required';
+ok !$fp->[3]->is_placeholder, 'param until is not a placeholder';
+ok !$fp->[3]->is_boolean, 'param until is not a boolean';
+ok !$fp->[3]->is_list, 'param until is not a list';
+ok !defined $fp->[3]->default, 'param until has no default';
 
-is $fp->[4]->name, 'user_fields', 'name of param 4';
-ok !$fp->[4]->is_required, 'param 4 is not required';
-ok !$fp->[4]->is_boolean, 'param 4 is not a boolean';
-ok $fp->[4]->is_list, 'param 4 is a list';
-ok !defined $fp->[4]->default, 'param 4 has no default';
+is $fp->[4]->name, 'user_fields', 'name of param user_fields';
+ok !$fp->[4]->is_required, 'param user_fields is not required';
+ok !$fp->[4]->is_placeholder, 'param user_fields is not a placeholder';
+ok !$fp->[4]->is_boolean, 'param user_fields is not a boolean';
+ok $fp->[4]->is_list, 'param user_fields is a list';
+ok !defined $fp->[4]->default, 'param user_fields has no default';
+
+isa_ok $f->code, 'CODE', 'function code';
+my $code;
+
+ok $code = $xing->can('login'), 'xing can login';
+isa_ok $code, 'CODE', 'can("login")';
+
+ok !($code = $xing->can('get_a_life')), 'xing can not get_a_life';
+
+ok $code = $xing->can('get_user_details'), 'xing can get_user_details';
+
+isa_ok $code, 'CODE', 'can("get_user_details")';
+
+my $nonce1 = WebService::XING::nonce;
+my $nonce2 = $xing->nonce;
+my $nonce3 = $xing->nonce;
+like $nonce1, qr/^[\d[A-Za-z\/\+]{27}$/, 'a nonce';
+like $nonce2, qr/^[\d[A-Za-z\/\+]{27}$/, 'another nonce';
+like $nonce3, qr/^[\d[A-Za-z\/\+]{27}$/, 'yet another nonce';
+isnt $nonce1, $nonce2, '1st and 2nd nonce are not equal';
+isnt $nonce1, $nonce3, '1st and 3rd nonce are not equal';
+isnt $nonce2, $nonce3, '2nd and 3rd nonce are not equal';
 
 done_testing;

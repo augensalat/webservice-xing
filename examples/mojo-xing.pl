@@ -7,6 +7,7 @@ use Try::Tiny;
 use WebService::XING;
 use YAML::Any 'Dump';
 
+my $DEFAULT_EXPIRE = 365 * 24 * 60 * 60;    # 1 year
 
 sub empty ($) { !(defined $_[0] && length $_[0]) }
 
@@ -19,7 +20,7 @@ catch {
 };
 
 app->secret($config->{session_secret});
-app->sessions->default_expiration(24 * 60 * 60);
+app->sessions->default_expiration($config->{session_expire} || $DEFAULT_EXPIRE);
 
 helper xing => sub {
     $_[0]->stash->{xing} ||= WebService::XING->new(
@@ -150,6 +151,7 @@ _EOT_
   key => 'CONSUMER KEY HERE',
   secret => 'CONSUMER SECRET HERE',
   session_secret => '$nonce',
+  session_expire => $DEFAULT_EXPIRE,    # 1 year in seconds
 }
 
     close $fh;

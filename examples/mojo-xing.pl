@@ -1,11 +1,23 @@
 #!/usr/bin/env perl
 
-use Encode 'decode_utf8';
-use File::Basename 'fileparse';
+use Encode qw(decode_utf8);
+use File::Basename qw(fileparse);
+use File::Spec::Functions qw(catdir splitdir);
 use Mojolicious::Lite;
 use Try::Tiny;
+use YAML::Any qw(Dump);
+
+my (@BasePath, $Path, $BaseName, $Suffix);
+
+BEGIN {
+    ($BaseName, $Path, $Suffix) = fileparse __FILE__, qr/\.[^.]*/;
+    @BasePath = splitdir($Path . '..');
+
+    my $lib = join '/', @BasePath, 'lib';
+    -e catdir(@BasePath, 't') ? unshift(@INC, $lib) : push(@INC, $lib);
+}
+
 use WebService::XING;
-use YAML::Any 'Dump';
 
 my $DEFAULT_EXPIRE = 365 * 24 * 60 * 60;    # 1 year
 
@@ -15,7 +27,7 @@ my $config = try {
     plugin 'Config';
 }
 catch {
-    create_config_file($0);
+    create_config_file($Path . $BaseName . '.conf');
     exit;
 };
 
@@ -132,9 +144,8 @@ post '/:function' => sub {
 app->start;
 
 sub create_config_file {
-    my $program = shift;
-    my ($filename, $directories, $suffix) = fileparse $program, qr/\.[^.]*/;
-    my $config = $directories . $filename . '.conf';
+    my $config = shift;
+    my $program = __FILE__;
     my $nonce = WebService::XING::nonce;
     my $fh;
     
@@ -164,7 +175,9 @@ I have created one for you:
 Please open it in your favorite editor to insert the consumer key and
 the consumer secret.
 
-Start $program again, when you are done.
+Then run
+
+  perl $program daemon
 
 _EOT_
 

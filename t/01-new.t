@@ -47,11 +47,16 @@ is_deeply [$xing->access_credentials], ['A-Side', 'B-side', 45], 'has access cre
 is(WebService::XING->new(@ARGS, warn => sub { shift() x 2 })->warn->('Bunga'),
    'BungaBunga', 'custom warn method');
 
-is_deeply [sort @{$xing->functions}], [sort keys %{$xing->_functab}], 'function list';
+test_functions_array(WebService::XING::functions());
+test_functions_array(WebService::XING->functions());
+test_functions_array($xing->functions());
 
-my $f = $xing->function('get_network_feed');
-
-isa_ok $f, 'WebService::XING::Function', 'function("get_network_feed")';
+my $f = WebService::XING::function('create_activity_like');
+isa_ok $f, 'WebService::XING::Function', 'WebService::XING::function("create_activity_like")';
+$f = WebService::XING->function('create_bookmark');
+isa_ok $f, 'WebService::XING::Function', 'WebService::XING->function("create_bookmark")';
+$f = $xing->function('get_network_feed');
+isa_ok $f, 'WebService::XING::Function', '$xing->function("get_network_feed")';
 
 my $fp = $f->params;
 
@@ -122,3 +127,14 @@ isnt $nonce1, $nonce3, '1st and 3rd nonce are not equal';
 isnt $nonce2, $nonce3, '2nd and 3rd nonce are not equal';
 
 done_testing;
+
+
+sub test_functions_array {
+    my $functions = shift;
+
+    isa_ok $functions, 'ARRAY', '$functions';
+    ok @$functions > 30, 'functions list has more than 30 elements';
+    ok((grep { $_ eq 'get_incoming_contact_requests' } @$functions),
+       'functions list contains get_incoming_contact_requests');
+}
+

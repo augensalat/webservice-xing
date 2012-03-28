@@ -119,6 +119,9 @@ my @FUNCTAB = (
 
 $Net::OAuth::PROTOCOL_VERSION = Net::OAuth::PROTOCOL_VERSION_1_0A;
 
+
+### Attributes
+
 has key => (is => 'ro', required => 1);
 
 has secret => (is => 'ro', required => 1);
@@ -174,12 +177,6 @@ has access_token_resource => (
 );
 sub _build_access_token_resource { '/v1/access_token' }
 
-has _functab => (is => 'ro', builder => '_build__functab');
-sub _build__functab { return { @FUNCTAB } }
-
-has _functions => (is => 'ro', builder => '_build__functions');
-sub _build__functions { return {} }
-
 has _ua => (builder => '_build__ua');
 sub _build__ua {
     my $self = shift;
@@ -199,6 +196,42 @@ sub _build__headers {
         'Accept-Encoding' => 'gzip, deflate',
     )
 }
+
+
+### Functions
+
+sub functions {
+    state $x = 0;
+    return state $functions = [ grep { $x ^= 1 } @FUNCTAB ];
+}
+
+sub function {
+    state $functab = { @FUNCTAB };  # coerce array @FUNCTAB into a hash
+    state $functions = {};          # store WebService::XING::Function objects
+    my $name = shift;
+
+    $name = shift if eval { $name->isa(__PACKAGE__) };  # called as a method
+
+    my $f = $functions->{$name};
+
+    return $f if $f;
+
+    $f = $functab->{$name} or return undef;
+
+    my ($method, $resource, @params) = @$f;
+
+    return $functions->{$name} = WebService::XING::Function->new(
+        name => $name,
+        method => $method,
+        resource => $resource,
+        params_in => \@params,
+    );
+}
+
+sub nonce { Digest::SHA::sha1_base64 time, $$, rand, @_ }
+
+
+### Methods
 
 sub login {
     my ($self, %args) = @_;
@@ -254,24 +287,6 @@ sub auth {
             token_secret => $oauth_res->token_secret,
             user_id => $extra_params->{user_id},
         }
-    );
-}
-
-sub function {
-    my ($self, $name) = @_;
-    my $f = $self->_functions->{$name};
-
-    return $f if $f;
-
-    $f = $self->_functab->{$name} or return undef;
-
-    my ($method, $resource, @params) = @$f;
-
-    return $self->_functions->{$name} = WebService::XING::Function->new(
-        name => $name,
-        method => $method,
-        resource => $resource,
-        params_in => \@params,
     );
 }
 
@@ -387,13 +402,6 @@ sub request {
         content => $resbody // $res->decoded_content,
     );
 }
-
-sub functions {
-    state $x = 0;
-    return state $functions = [ grep { $x ^= 1 } @FUNCTAB ];
-}
-
-sub nonce { Digest::SHA::sha1_base64 time, $$, rand, @_ }
 
 ### Internal
 
@@ -674,7 +682,7 @@ Default: F</v1/access_token>
 
 None of the functions is exported.
 
-All functions can also be called as methods.
+All functions can also be called as (either class or object) methods.
 
 =head2 functions
 
@@ -685,6 +693,15 @@ All functions can also be called as methods.
 A function, that provides a reference to a list of the names of all
 the API's functions. The order is the same as documented under
 L<https://dev.xing.com/docs/resources>.
+
+=head2 function
+
+  $function = WebService::XING::function($name);
+  $function = WebService::XING->function($name);
+  $function = $xing->function($name);
+
+Get a L<WebService::XING::Function> object for the given function C<$name>.
+Return C<undef> if no function with the given C<$name> is known.
 
 =head2 nonce
 
@@ -729,13 +746,6 @@ The object constructor requires L</key> and L</secret> to be set, and
 for all methods besides L</login> and L</auth> also L</access_token> and
 L</access_secret>. Any other L<attribute|/ATTRIBUTES> can be set here as
 well.
-
-=head2 function
-
-  $function = $xing->function($name);
-
-Get a L<WebService::XING::Function> object for the given function C<$name>.
-Return C<undef> if a function with the given function C<$name> is unknown.
 
 =head2 can
 

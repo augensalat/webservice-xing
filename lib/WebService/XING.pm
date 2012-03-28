@@ -144,12 +144,6 @@ sub _build_user_agent { __PACKAGE__ . '/' . $VERSION . ' (Perl)' }
 has request_timeout => (builder => '_build_request_timeout', chain => 1);
 sub _build_request_timeout { 30 }
 
-has functions => (is => 'ro', builder => '_build_functions');
-sub _build_functions {
-    my $x = 0;
-    return [ grep { $x ^= 1 } @FUNCTAB ];
-}
-
 has json => (builder => '_build_json', chain => 1);
 sub _build_json { JSON->new->utf8->allow_nonref }
 
@@ -394,7 +388,12 @@ sub request {
     );
 }
 
-sub nonce { Digest::SHA::sha1_base64 time, $$, rand, @_; }
+sub functions {
+    state $x = 0;
+    return state $functions = [ grep { $x ^= 1 } @FUNCTAB ];
+}
+
+sub nonce { Digest::SHA::sha1_base64 time, $$, rand, @_ }
 
 ### Internal
 
@@ -490,7 +489,7 @@ the whole range of functions described under L<https://dev.xing.com/>.
 =head2 Method Introspection
 
 An application can query a list of all available API functions together
-with their parameters. See the L</functions> attribute and the
+with their parameters. See the L</functions> function and the
 L</function> and L</can> method for more information.
 
 =head2 Alpha Software Warning
@@ -601,12 +600,6 @@ Maximum time in seconds to wait for a response.
 
 Default: C<30>
 
-=head2 functions
-
-A read-only property providing a reference to a list of the names of all
-the API's functions. The order is the same as documented under
-L<https://dev.xing.com/docs/resources>.
-
 =head2 json
 
   $xing = $xing->json(My::JSON->new);
@@ -676,6 +669,35 @@ Resource where to receive an OAuth access token. Do not change without
 reason.
 
 Default: F</v1/access_token>
+
+=head1 FUNCTIONS
+
+None of the functions is exported.
+
+All functions can also be called as methods.
+
+=head2 functions
+
+  $functions = WebService::XING::functions;
+  $functions = WebService::XING->functions;
+  $functions = $xing->functions;
+
+A function, that provides a reference to a list of the names of all
+the API's functions. The order is the same as documented under
+L<https://dev.xing.com/docs/resources>.
+
+=head2 nonce
+
+  $nonce = WebService::XING::nonce;
+  $nonce = WebService::XING::nonce($any, $kind, $of, @input);
+
+A function that creates a random string. While this is used internally,
+it is documented here, so you can use it if you like.
+Accepts any number of arbitrary volatile arguments to increase entropy.
+Works as a method too, with the nice side effect, that the object serves
+as entropy argument:
+
+  $nonce = $xing->nonce;
 
 =head1 METHODS
 
@@ -1128,21 +1150,6 @@ An api resource, e.g. F</v1/users/me>.
 A list of named arguments, e.g. C<< id => 'me', text => 'Blah!' >>.
 
 =back
-
-=head1 FUNCTIONS
-
-=head2 nonce
-
-  $nonce = WebService::XING::nonce;
-  $nonce = WebService::XING::nonce($any, $kind, $of, @input);
-
-A function that creates a random string. While this is used internally,
-it is documented here, so you can use it if you like.
-Accepts any number of arbitrary volatile arguments to increase entropy.
-Works as a method too, with the nice side effect, that the object serves
-as entropy argument:
-
-  $nonce = $xing->nonce;
 
 =head1 SEE ALSO
 

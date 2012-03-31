@@ -115,7 +115,7 @@ sub function ($$) {
 
     while (my ($k, $v) = each %opts) {
         $k =~ s/-/_/g;
-        push @args, $k, decode $encoding, $v;
+        push @args, $k, ref $v ? [map {decode $encoding, $_} @$v] : decode $encoding, $v;
     }
 
     my $res = $function->code->($xing, @args);

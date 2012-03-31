@@ -63,6 +63,15 @@ USAGE
   }
 
 
+COMMAND LINE INTERFACE
+
+This package installs the "xing" shell command. For more information enter
+
+  xing
+
+(or perhaps "perl xing" for the doomed).
+
+
 EXAMPLES
 
 The distribution tarball includes a fully self-contained web application.

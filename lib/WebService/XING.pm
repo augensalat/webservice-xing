@@ -102,7 +102,7 @@ my @FUNCTAB = (
         [POST => '/v1/users/:user_id/visits'],
 
     # Recommendations
-    get_recommended_users =>
+    get_recommendations =>
         [GET => '/v1/users/:user_id/network/recommendations', 'limit', 'offset', 'similar_user_id', '@user_fields'],
 
     # Invitations
@@ -1096,9 +1096,9 @@ See L<https://dev.xing.com/docs/get/users/:user_id/visits>
 
 See L<https://dev.xing.com/docs/post/users/:user_id/visits>
 
-=head2 get_recommended_users
+=head2 get_recommendations
 
-  $res = $xing->get_recommended_users(
+  $res = $xing->get_recommendations(
     user_id => $id,
     limit => $limit, offset => $offset,
     similar_user_id => $similar_user_id,

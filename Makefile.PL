@@ -2,7 +2,6 @@ use inc::Module::Install;
 
 name     'WebService-XING';
 all_from 'lib/WebService/XING.pm';
-author   'Bernhard Graf <graf (?) cpan.org>';
 license  'perl';
 
 perl_version '5.010000';

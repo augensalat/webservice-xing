@@ -104,6 +104,8 @@ my @FUNCTAB = (
     # Recommendations
     get_recommendations =>
         [GET => '/v1/users/:user_id/network/recommendations', 'limit', 'offset', 'similar_user_id', '@user_fields'],
+    block_recommendation =>
+        [DELETE => '/v1/users/:user_id/network/recommendations/user/:id'],
 
     # Invitations
     create_invitations =>

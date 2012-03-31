@@ -7,6 +7,7 @@
 ^_build/
 ^MANIFEST\.
 ^.*\.tar\.gz$
-\..*\.swp$
+(^|/)\..*\.swp$
+(^|/).*.conf$
 ^\.git/
 ^\.gitignore$

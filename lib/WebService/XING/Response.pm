@@ -30,7 +30,7 @@ WebService::XING::Response - XING API Response Class
 
 =head1 DESCRIPTION
 
-All methods of L<WebService::XING> return object instances of the
+Most methods of L<WebService::XING> return object instances of the
 C<WebService::XING::Response> class, that contains HTTP status and
 header information besides the actual response.
 
@@ -50,7 +50,7 @@ Calls L</as_string> behind the curtain.
 
 =item Numeric context:
 
-  say 0 + $response;  # "200"
+  say "created" if $response == 201;
 
 The HTTP status L</code>.
 

@@ -12,10 +12,9 @@ use Mo 0.30 qw(builder chain is required);
 use Net::OAuth;
 use URI;
 use WebService::XING::Function;
-use WebService::XING::Error;
 use WebService::XING::Response;
 
-our $VERSION = '0.001';
+our $VERSION = '0.002';
 
 our @CARP_NOT = qw(Mo::builder Mo::chain Mo::is Mo::required);
 @Carp::Internal{qw(Mo::builder Mo::chain Mo::is Mo::required)} = (1, 1, 1, 1);
@@ -472,7 +471,7 @@ WebService::XING - Perl Interface to the XING API
 
 =head1 VERSION
 
-Version 0.001
+Version 0.002
 
 =head1 SYNOPSIS
 
@@ -489,7 +488,7 @@ Version 0.001
   $res = $xing->get_user_details(id => 'me')
     or die $res;
 
-  say "Hello, I'm ", $res->content->{users}->[0]->{display_name};
+  say "Hello, my name is ", $res->content->{users}->[0]->{display_name};
 
 =head1 DESCRIPTION
 
@@ -499,8 +498,8 @@ the whole range of functions described under L<https://dev.xing.com/>.
 =head2 Method Introspection
 
 An application can query a list of all available API functions together
-with their parameters. See the L</functions> function and the
-L</function> and L</can> method for more information.
+with their parameters. See the L</functions> and the L</function>
+function, and the L</can> method for more information.
 
 =head2 Alpha Software Warning
 
@@ -535,11 +534,11 @@ above:
     ->get_user_details(id => 'me')
       or die $res;
 
-  say "Hello, I'm ", $res->content->{users}->[0]->{display_name};
+  say "Hello, my name is ", $res->content->{users}->[0]->{display_name};
 
 All attributes with a default value are "lazy": They get their value when
-they are read the first time, unless they are already initialized. To get
-the default value, an attribute calls a builder method called
+they are read the first time, unless they are already initialized. The
+attribute default value is set by a builder method called
 C<"_build_" . $attribute_name>.  This gives a sub class of
 C<WebService::XING> the opportunity to override any default value by
 providing a custom builder method.
@@ -583,13 +582,13 @@ The scrambled XING user id as returned (and set) by the L</auth> method.
   ($access_token, $access_secret, $user_id) =
     $xing->access_credentials;
 
-Convenience access attribute accessor, for getting and setting
-L</access_token>, L</access_secret> and L</user_id> in one go.
+Convenience attribute accessor, for getting and setting L</access_token>,
+L</access_secret> and L</user_id> in one go.
 
 Once authorization has completed, L</access_token>, L</access_secret> and
 L</user_id> are the only variable attributes, that are needed to use all
 API functions. An application must store these three values for later
-authentication, a web application might put them in a long lasting
+authentication. A web application might put them in a long lasting
 session.
 
 =head2 user_agent
@@ -617,7 +616,7 @@ Default: C<30>
 
 An object instance of a JSON class.
 
-Default: L<< JSON->new->utf8->allow_nonref >>.
+Default: C<< JSON->new->utf8->allow_nonref >>.
 Uses L<JSON::XS> if available.
 
 =head2 warn
@@ -655,8 +654,8 @@ Default: C<https://api.xing.com>
   $xing = $xing->request_token_resource($request_token_resource);
   $request_token_resource = $xing->request_token_resource;
 
-Resource where to receive an OAuth request token. Do not change without
-reason.
+Resource where to receive a temporary OAuth request token.
+Do not change without reason.
 
 Default: F</v1/request_token>
 
@@ -703,33 +702,27 @@ L<https://dev.xing.com/docs/resources>.
   $function = $xing->function($name);
 
 Get a L<WebService::XING::Function> object for the given function C<$name>.
-Return C<undef> if no function with the given C<$name> is known.
+Returns C<undef> if no function with the given C<$name> is known.
 
 =head2 nonce
 
   $nonce = WebService::XING::nonce;
   $nonce = WebService::XING::nonce($any, $kind, $of, @input);
-
-A function that creates a random string. While this is used internally,
-it is documented here, so you can use it if you like.
-Accepts any number of arbitrary volatile arguments to increase entropy.
-Works as a method too, with the nice side effect, that the object serves
-as entropy argument:
-
   $nonce = $xing->nonce;
+
+A function, that creates a random string. While intended primarily for
+internal use, it is documented here, so you can use it if you like.
+Accepts any number of arbitrary volatile arguments to increase entropy.
 
 =head1 METHODS
 
 All methods are called with named arguments - or in other words - with
 a list of key-value-pairs.
 
-All methods except L</new> and L</function> return a
+All methods except L</new> and L</can> return a
 L<WebService::XING::Response> object on success.
 
-All methods except L</new>, L</function>, L</login> and L</auth> return
-a L<WebService::XING::Error> object (which is actually a child class of
-L<WebService::XING::Response>) on failure. A method may L</die>
-if called inaccurately (e.g. with missing arguments).
+A method may L</die> if called inaccurately (e.g. with missing arguments).
 
 When the method documentation mentions a C<$bool> argument, it means
 boolean in the way Perl handles it: C<undef>, "" and C<0> being C<false>
@@ -768,7 +761,7 @@ or
   $res = $xing->login(callback => $callback_url) or die $res;
   ...
 
-OAuth handshake step 1: Obtain a request token.
+OAuth handshake step 1: Obtain a temporary request token.
 
 If a callback url is given, the user will be re-directed back to that
 location from the XING authorization page after successfull completion
@@ -777,13 +770,10 @@ C<oob>) a PIN code (C<oauth_verifier>) is displayed to the user on the
 XING authorization page, that must be entered in the consuming
 application.
 
-An C<undef> value is returned to indicate an error, the L</error>
-attribute contains a L<WebServive::XING::Error> object for further
-investigation.
+Always returns a L<WebServive::XING::Response> object.
 
-The L<content property|WebService::XING::Response/content> of the
-L<response|WebService::XING::Response> contains a hash with the 
-following elements:
+L<WebService::XING::Response/content> contains a hash with the following
+elements:
 
 =over
 
@@ -794,11 +784,11 @@ the user must be redirected to that location.
 
 =item C<token>:
 
-The request token. Needed in L</auth>.
+The temporary request token. Needed in L</auth>.
 
 =item C<token_secret>:
 
-The request token secret. Needed in L</auth>.
+The temporary request token secret. Needed in L</auth>.
 
 =back
 
@@ -811,7 +801,7 @@ The request token secret. Needed in L</auth>.
   );
 
 OAuth handshake step 3: Obtain an access token.
-Requires a list of the following three named parameters:
+Requires the following three named parameters:
 
 =over
 
@@ -1166,7 +1156,7 @@ A list of named arguments, e.g. C<< id => 'me', text => 'Blah!' >>.
 =head1 SEE ALSO
 
 L<WebService::XING::Response>, L<WebService::XING::Function>,
-L<WebService::XING::Error>, L<https://dev.xing.com/>
+L<https://dev.xing.com/>
 
 =head1 AUTHOR
 

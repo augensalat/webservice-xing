@@ -69,8 +69,9 @@ WebService::XING::Function - XING API Function Class
 
 =head1 DESCRIPTION
 
-An object of the C<WebService::XING::Function> class is an abstract
-description of a XING API function.
+An object of the C<WebService::XING::Function> class represents an
+abstract description of a XING API function. It is usually created and
+returned by L<XING::WebService/function>.
 
 =head1 OVERLOADING
 
@@ -85,11 +86,11 @@ Function name. Required.
 
 =head2 method
 
-HTTP method. Required. This attribute has informational value only.
+HTTP method. Required.
 
 =head2 resource
 
-The REST resource. Required. This attribute has informational value only.
+The REST resource. Required.
 
 =head2 params_in
 
@@ -98,17 +99,17 @@ only.
 
 =head2 params
 
-Read-only attribute providing a reference to an array of
+Read-only attribute, that contains a reference to an array of
 L<WebService::XING::Function::Parameter> objects, of which each describes
 a parameter.
 
 =head2 code
 
-Read-only attribute providing a code reference. This code is actually a
-closure method of the L<WebService::XING> class, that holds a reference
-to this L<WebService::XING::Function> object in order to validate the
-method arguments and to build the API request.
+Read-only attribute, that contians a code reference. This code is
+actually a closure method of the L<WebService::XING> class, with a
+reference to this L<WebService::XING::Function> object in order to
+validate the method arguments and to build the API request.
 
 =head1 SEE ALSO
 
-L<WebService::XING::Function::Parameter>
+L<WebService::XING>, L<WebService::XING::Function::Parameter>

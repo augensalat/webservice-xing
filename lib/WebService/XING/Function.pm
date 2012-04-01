@@ -71,7 +71,7 @@ WebService::XING::Function - XING API Function Class
 
 An object of the C<WebService::XING::Function> class represents an
 abstract description of a XING API function. It is usually created and
-returned by L<XING::WebService/function>.
+returned by L<WebService::XING/function>.
 
 =head1 OVERLOADING
 

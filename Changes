@@ -1,5 +1,8 @@
 Revision history for WebService-XING
 
+0.003	2012-04-01
+    - Documentation fixes.
+
 0.002	2012-04-01
     - Documentation fixes.
     - Remove WebService::XING::Error.

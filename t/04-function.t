@@ -27,26 +27,58 @@ lives_ok {
         name => 'create_foo_bar',
         method => 'POST',
         resource => '/v1/foo/:id/bar',
-        params_in => ['!mumble', '@bumble', '?rumble=1'],
+        params_in => ['!mumble', '@bumble', '@!dumble', '?rumble=1'],
     );
 } 'create a WebService::XING::Function object';
 
 is "$f", 'create_foo_bar', 'stringifies correctly';
 
-is_deeply $f->params, [
-    WebService::XING::Function::Parameter->new(
-        name => 'id', is_required => 1, is_placeholder => 1, default => undef
-    ),
-    WebService::XING::Function::Parameter->new(
-        name => 'mumble', is_required => 1, default => undef
-    ),
-    WebService::XING::Function::Parameter->new(
-        name => 'bumble', is_list => 1, default => undef
-    ),
-    WebService::XING::Function::Parameter->new(
-        name => 'rumble', is_boolean => 1, default => 1
-    ),
-], 'function params list is built correctly';
+# is_deeply failed miserably here
+my @expect = (
+    [
+        name => 'id', is_required => 1, is_placeholder => 1, is_list => 0,
+        is_boolean => 0, default => undef,
+    ],
+    [
+        name => 'mumble', is_required => 1, is_placeholder => 0, is_list => 0,
+        is_boolean => 0, default => undef,
+    ],
+    [
+        name => 'bumble', is_required => 0, is_placeholder => 0, is_list => 1,
+        is_boolean => 0, default => undef,
+    ],
+    [
+        name => 'dumble', is_required => 1, is_placeholder => 0, is_list => 1,
+        is_boolean => 0, default => undef,
+    ],
+    [
+        name => 'rumble', is_required => 0, is_placeholder => 0, is_list => 0,
+        is_boolean => 1, default => 1,
+    ],
+);
+
+for my $i (0 .. $#{$f->params}) {
+    my $c = ($i + 1) . '. parameter';
+    isa_ok $f->params->[$i], 'WebService::XING::Function::Parameter', $c;
+    while (my ($key, $val) = splice @{$expect[$i]}, 0, 2) {
+        if ($key =~ /^is_/) {
+            if ($val eq "1") {
+                ok $f->params->[$i]->$key, "$c $key";
+            }
+            elsif ($val eq "0") {
+                ok !$f->params->[$i]->$key, "$c not $key";
+            }
+        }
+        else {
+            if (defined $val) {
+                is $f->params->[$i]->$key, $val, qq{$c $key is "$val"};
+            }
+            else {
+                is $f->params->[$i]->$key, $val, qq{$c does not have a $key};
+            }
+        }
+    }
+}
 
 isa_ok $f->code, 'CODE', 'function code';
 

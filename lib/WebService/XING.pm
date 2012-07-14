@@ -14,7 +14,7 @@ use URI;
 use WebService::XING::Function;
 use WebService::XING::Response;
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 our @CARP_NOT = qw(Mo::builder Mo::chain Mo::is Mo::required);
 @Carp::Internal{qw(Mo::builder Mo::chain Mo::is Mo::required)} = (1, 1, 1, 1);
@@ -423,6 +423,8 @@ sub _scour_args {
                 $self->die->(_invalid_parameter($key, ref $self, $f->name))
                     unless $p->is_list;
                 $value = join(',', @$value);
+                $self->die->(_missing_parameter($key, ref $self, $f->name))
+                    if length $value == 0 and $p->is_required;
             }
             elsif ($p->is_boolean) {
                 $value = $value && $value ne 'false' ? 'true' : 'false';

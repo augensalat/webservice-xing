@@ -13,5 +13,4 @@ WebService-XING-*
 *~
 .*
 !.gitignore
-*.development.conf
-*.production.conf
+*.conf

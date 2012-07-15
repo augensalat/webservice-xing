@@ -14,7 +14,7 @@ use URI;
 use WebService::XING::Function;
 use WebService::XING::Response;
 
-our $VERSION = '0.010';
+our $VERSION = '0.020';
 
 our @CARP_NOT = qw(Mo::builder Mo::chain Mo::is Mo::required);
 @Carp::Internal{qw(Mo::builder Mo::chain Mo::is Mo::required)} = (1, 1, 1, 1);
@@ -53,15 +53,15 @@ my @FUNCTAB = (
         [PUT => '/v1/users/:user_id/profile_message', '!message', '?public=1'],
 
     # Contacts
-    get_contacts =>
+    list_contacts =>
         [GET => '/v1/users/:user_id/contacts', 'limit', 'offset', 'order_by', '@user_fields'],
-    get_shared_contacts =>
+    list_shared_contacts =>
         [GET => '/v1/users/:user_id/contacts/shared', 'limit', 'offset', 'order_by', '@user_fields'],
 
     # Contact Requests
-    get_incoming_contact_requests =>
+    list_incoming_contact_requests =>
         [GET => '/v1/users/:user_id/contact_requests', 'limit', 'offset', '@user_fields'],
-    get_sent_contact_requests =>
+    list_sent_contact_requests =>
         [GET => '/v1/users/:user_id/contact_requests/sent', 'limit', 'offset'],
     create_contact_request =>
         [POST => '/v1/users/:user_id/contact_requests', 'message'],
@@ -75,7 +75,7 @@ my @FUNCTAB = (
         [GET => '/v1/users/:user_id/network/:other_user_id/paths', '?all_paths=0', '@user_fields'],
 
     # Bookmarks
-    get_bookmarks =>
+    list_bookmarks =>
         [GET => '/v1/users/:user_id/bookmarks', 'limit', 'offset', '@user_fields'],
     create_bookmark =>
         [PUT => '/v1/users/:user_id/bookmarks/:id'],
@@ -93,13 +93,13 @@ my @FUNCTAB = (
         [POST => '/v1/activities/:id/share', 'text'],
     delete_activity =>
         [DELETE => '/v1/activities/:id'],
-    get_activity_comments =>
+    list_activity_comments =>
         [GET => '/v1/activities/:activity_id/comments', 'limit', 'offset', '@user_fields'],
     create_activity_comment =>
         [POST => '/v1/activities/:activity_id/comments', 'text'],
     delete_activity_comment =>
         [DELETE => '/v1/activities/:activity_id/comments/:id'],
-    get_activity_likes =>
+    list_activity_likes =>
         [GET => '/v1/activities/:activity_id/likes', 'limit', 'offset', '@user_fields'],
     create_activity_like =>
         [PUT => '/v1/activities/:activity_id/like'],
@@ -107,15 +107,15 @@ my @FUNCTAB = (
         [DELETE => '/v1/activities/:activity_id/like'],
 
     # Profile Visits
-    get_profile_visits =>
+    list_profile_visits =>
         [GET => '/v1/users/:user_id/visits', 'limit', 'offset', 'since', '?strip_html=0'],
     create_profile_visit =>
         [POST => '/v1/users/:user_id/visits'],
 
     # Recommendations
-    get_recommendations =>
+    list_recommendations =>
         [GET => '/v1/users/:user_id/network/recommendations', 'limit', 'offset', 'similar_user_id', '@user_fields'],
-    block_recommendation =>
+    delete_recommendation =>
         [DELETE => '/v1/users/:user_id/network/recommendations/user/:id'],
 
     # Invitations
@@ -125,7 +125,7 @@ my @FUNCTAB = (
     # Geo Locations
     update_geo_location =>
         [PUT => '/v1/users/:user_id/geo_location', '!accuracy', '!latitude', '!longitude', 'ttl'],
-    get_nearby_users  =>
+    list_nearby_users  =>
         [GET => '/v1/users/:user_id/nearby_users', 'age', 'radius', '@user_fields'],
 );
 
@@ -416,6 +416,20 @@ sub request {
     );
 }
 
+### Deprecated (renamed) methods
+
+sub get_contacts { shift->list_contacts(@_) }
+sub get_shared_contacts { shift->list_shared_contacts(@_) }
+sub get_incoming_contact_requests { shift->list_incoming_contact_requests(@_) }
+sub get_sent_contact_requests { shift->list_sent_contact_requests(@_) }
+sub get_bookmarks { shift->list_bookmarks(@_) }
+sub get_activity_comments { shift->list_activity_comments(@_) }
+sub get_activity_likes { shift->list_activity_likes(@_) }
+sub get_profile_visits { shift->list_profile_visits(@_) }
+sub get_recommendations { shift->list_recommendations(@_) }
+sub block_recommendation { shift->delete_recommendation(@_) }
+sub get_nearby_users { shift->list_nearby_users(@_) }
+
 ### Internal
 
 # ($expanded_resource, @parameters) =
@@ -485,7 +499,7 @@ WebService::XING - Perl Interface to the XING API
 
 =head1 VERSION
 
-Version 0.002
+Version 0.020
 
 =head1 SYNOPSIS
 
@@ -932,9 +946,9 @@ See L<https://dev.xing.com/docs/get/users/:user_id/profile_message>
 
 See L<https://dev.xing.com/docs/put/users/:user_id/profile_message>
 
-=head2 get_contacts
+=head2 list_contacts
 
-  $res = $xing->get_contacts(
+  $res = $xing->list_contacts(
     user_id => $user_id,
     limit => $limit, offset => $offset, order_by => $order_by,
     user_fields => \@user_fields
@@ -942,9 +956,9 @@ See L<https://dev.xing.com/docs/put/users/:user_id/profile_message>
 
 See L<https://dev.xing.com/docs/get/users/:user_id/contacts>
 
-=head2 get_shared_contacts
+=head2 list_shared_contacts
 
-  $res = $xing->get_shared_contacts(
+  $res = $xing->list_shared_contacts(
     user_id => $user_id,
     limit => $limit, offset => $offset, order_by => $order_by,
     user_fields => \@user_fields
@@ -952,9 +966,9 @@ See L<https://dev.xing.com/docs/get/users/:user_id/contacts>
 
 See L<https://dev.xing.com/docs/get/users/:user_id/contacts/shared>
 
-=head2 get_incoming_contact_requests
+=head2 list_incoming_contact_requests
 
-  $res = $xing->get_incoming_contact_requests(
+  $res = $xing->list_incoming_contact_requests(
     user_id => $user_id,
     limit => $limit, offset => $offset,
     user_fields => \@user_fields
@@ -962,9 +976,9 @@ See L<https://dev.xing.com/docs/get/users/:user_id/contacts/shared>
 
 See L<https://dev.xing.com/docs/get/users/:user_id/contact_requests>
 
-=head2 get_sent_contact_requests
+=head2 list_sent_contact_requests
 
-  $res = $xing->get_sent_contact_requests(
+  $res = $xing->list_sent_contact_requests(
     user_id => $user_id, limit => $limit, offset => $offset
   );
 
@@ -1005,9 +1019,9 @@ See L<https://dev.xing.com/docs/delete/users/:user_id/contact_requests/:id>
 
 See L<https://dev.xing.com/docs/get/users/:user_id/network/:other_user_id/paths>
 
-=head2 get_bookmarks
+=head2 list_bookmarks
 
-  $res = $xing->get_bookmarks(
+  $res = $xing->list_bookmarks(
     user_id => $user_id,
     limit => $limit, offset => $offset,
     user_fields => \@user_fields
@@ -1079,9 +1093,9 @@ See L<https://dev.xing.com/docs/post/activities/:id/share>
 
 See L<https://dev.xing.com/docs/delete/activities/:id>
 
-=head2 get_activity_comments
+=head2 list_activity_comments
 
-  $res = $xing->get_activity_comments(
+  $res = $xing->list_activity_comments(
     activity_id => $activity_id,
     limit => $limit, offset => $offset,
     user_fields => \@user_fields
@@ -1107,9 +1121,9 @@ See L<https://dev.xing.com/docs/post/activities/:activity_id/comments>
 
 See L<https://dev.xing.com/docs/delete/activities/:activity_id/comments/:id>
 
-=head2 get_activity_likes
+=head2 list_activity_likes
 
-  $res = $xing->get_activity_likes(
+  $res = $xing->list_activity_likes(
     activity_id => $activity_id,
     limit => $limit, offset => $offset,
     user_fields => \@user_fields
@@ -1129,7 +1143,13 @@ See L<https://dev.xing.com/docs/put/activities/:activity_id/like>
 
 See L<https://dev.xing.com/docs/delete/activities/:activity_id/like>
 
-=head2 get_profile_visits
+=head2 list_profile_visits
+
+  $res = $xing->list_profile_visits(user_id => $user_id);
+
+See L<https://dev.xing.com/docs/get/users/:user_id/visits>
+
+=head2 create_profile_visit
 
   $res = $xing->create_profile_visit(
     user_id => $user_id,
@@ -1138,17 +1158,11 @@ See L<https://dev.xing.com/docs/delete/activities/:activity_id/like>
     strip_html => $bool
   );
 
-See L<https://dev.xing.com/docs/get/users/:user_id/visits>
-
-=head2 create_profile_visit
-
-  $res = $xing->get_profile_visits(user_id => $user_id);
-
 See L<https://dev.xing.com/docs/post/users/:user_id/visits>
 
-=head2 get_recommendations
+=head2 list_recommendations
 
-  $res = $xing->get_recommendations(
+  $res = $xing->list_recommendations(
     user_id => $user_id,
     limit => $limit, offset => $offset,
     similar_user_id => $similar_user_id,
@@ -1156,6 +1170,14 @@ See L<https://dev.xing.com/docs/post/users/:user_id/visits>
   );
 
 See L<https://dev.xing.com/docs/get/users/:user_id/network/recommendations>
+
+=head2 delete_recommendation
+
+  $res = $xing->list_recommendation(
+    user_id => $user_id, id => $delete_user_id,
+  );
+
+See L<https://dev.xing.com/docs/delete/users/:user_id/network/recommendations/user/:id>
 
 =head2 create_invitations
 
@@ -1178,9 +1200,9 @@ See L<https://dev.xing.com/docs/post/users/invite>
 
 See L<https://dev.xing.com/docs/put/users/:user_id/geo_location>
 
-=head2 get_nearby_users
+=head2 list_nearby_users
 
-  $res = $xing->get_nearby_users(
+  $res = $xing->list_nearby_users(
     user_id => $user_id,
     age => $age,
     radius => $radius,
@@ -1210,6 +1232,57 @@ An api resource, e.g. F</v1/users/me>.
 A list of named arguments, e.g. C<< id => 'me', text => 'Blah!' >>.
 
 =back
+
+=head1 DEPRECATED METHODS
+
+For the sake of consistency a couple of API methods have been renamed.
+These methods are still available under their old names. The old names
+are not detectable by means of L</Method Introspection>, and will be
+removed in a future release.
+
+=head2 get_contacts
+
+Renamed to L</list_contacts>.
+
+=head2 get_shared_contacts
+
+Renamed to L</list_shared_contacts>.
+
+=head2 get_incoming_contact_requests
+
+Renamed to L</list_incoming_contact_requests>.
+
+=head2 get_sent_contact_requests
+
+Renamed to L</list_sent_contact_requests>.
+
+=head2 get_bookmarks
+
+Renamed to L</list_bookmarks>.
+
+=head2 get_activity_comments
+
+Renamed to L</list_activity_comments>.
+
+=head2 get_activity_likes
+
+Renamed to L</list_activity_likes>.
+
+=head2 get_profile_visits
+
+Renamed to L</list_profile_visits>.
+
+=head2 get_recommendations
+
+Renamed to L</list_recommendations>.
+
+=head2 block_recommendation
+
+Renamed to L</delete_recommendation>.
+
+=head2 get_nearby_users
+
+Renamed to L</list_nearby_users>.
 
 =head1 SEE ALSO
 

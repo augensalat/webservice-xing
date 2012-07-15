@@ -134,7 +134,7 @@ sub test_functions_array {
 
     isa_ok $functions, 'ARRAY', '$functions';
     ok @$functions > 30, 'functions list has more than 30 elements';
-    ok((grep { $_ eq 'get_incoming_contact_requests' } @$functions),
-       'functions list contains get_incoming_contact_requests');
+    ok((grep { $_ eq 'list_incoming_contact_requests' } @$functions),
+       'functions list contains list_incoming_contact_requests');
 }
 

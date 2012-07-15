@@ -47,18 +47,21 @@ helper readable_name => sub { ucfirst join ' ', split '_', $_[1] };
 
 get '/static' => 'static';  # inline /static.*
 
-post '/login' => sub  {
+get '/auth_callback' => sub  {
     my $self = shift;
-    my $p = $self->req->body_params;
+    my $s = $self->session;
+    my $oauth_token  = $self->param('oauth_token');
+
+    $oauth_token eq delete $s->{oauth_token}
+        or die 'Unknown OAuth request token';
+
     my $xing = $self->xing;
     my $res = $xing->auth(
-        token => scalar $p->param('request_token'),
-        token_secret => scalar $p->param('request_secret'),
-        verifier => $p->param('verifier')
+        token => $oauth_token,
+        token_secret => delete $s->{oauth_token_secret},
+        verifier => scalar $self->param('oauth_verifier')
     );
     $res or die $res;
-
-    my $s = $self->session;
 
     @$s{qw(access_token access_secret user_id)} = $xing->access_credentials;
 
@@ -73,24 +76,33 @@ get '/logout' => sub {
     $self->redirect_to($self->url_for('/'));
 };
 
-under sub {
+get '/' => 'index';
+
+get '/login' => my $Login = sub {
     my $self = shift;
     my $s = $self->session;
 
     return $self->xing->access_credentials(@$s{qw(access_token access_secret user_id)})
         if $s->{access_token} and $s->{access_secret} and $s->{user_id};
 
-    my $res; $res = $self->xing->login or die $res;
+    my $res;
+    $res = $self->xing->login(callback => $self->url_for('/auth_callback')->to_abs)
+        or die $res;
 
+    my $content = $res->content;
+    my $current_path = $self->url_for->path;
+
+    @$s{qw(oauth_token oauth_token_secret)} = @$content{qw(token token_secret)};
     $s->{redirect_after_login} =
-        $self->req->method eq 'GET' ? $self->url_for : $self->url_for('/');
+        $self->req->method eq 'GET' && $current_path ne '/login' ?
+            $current_path : $self->url_for('/');
 
-    $self->render(template => 'login', login => $res->content);
+    $self->redirect_to($content->{url});
 
     return;
 };
 
-get '/' => 'index';
+under $Login;
 
 get '/:function' => sub {
     my $self = shift;
@@ -173,7 +185,7 @@ I have created one for you:
   $config
 
 Please open it in your favorite editor to insert the consumer key and
-the consumer secret.
+the consumer secret. You find them at https://dev.xing.com/applications
 
 Then run
 
@@ -184,37 +196,6 @@ _EOT_
 }
 
 __DATA__
-
-@@ login.html.ep
-%  layout 'default';
-%  content_for header => begin
-%=   javascript begin
-function xpop(url) {
-  newwindow = window.open('<%= $login->{url} %>','name','height=550,width=400,menubar=no,status=no,directories=no');
-  if (window.focus) newwindow.focus();
-  return false;
-}
-%    end
-%  end
-<h1>Login with your XING account</h1>
-<div class="well">
-%= link_to 'Click to open the XING Authorization Page', $login->{url}, onclick => "return xpop()"
-</div>
-%= form_for url_for('/login') => (method => 'post') => begin
-<fieldset>
-%= hidden_field request_token => $login->{token}
-%= hidden_field request_secret => $login->{token_secret}
-<div class="control-group">
-<label for="verfifier"><strong>PIN</strong></label>
-%= text_field 'verifier', id => 'verifier'
-<p class="help-block">Enter the 4-digit PIN code from the XING authorization window</p>
-</div>
-<div class="form-actions">
-%= submit_button 'Login', class => 'btn btn-primary'
-</div>
-</fieldset>
-%  end
-</p>
 
 @@ index.html.ep
 %  layout 'default';
@@ -312,11 +293,9 @@ body {
 <ul class="nav">
 <li><a href="/">Home</a></li>
 </ul>
-%   if (session 'access_token') {
 <ul class="nav pull-right">
-<li><%= link_to Logout => 'logout' %></li>
+<li><% if (session 'access_token') { %><%= link_to Logout => 'logout' %><% } else { %><%= link_to Login => 'login' %><% } %></li>
 </ul>
-%   }
 </div>
 </div>
 </div>

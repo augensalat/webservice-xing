@@ -14,7 +14,7 @@ use URI;
 use WebService::XING::Function;
 use WebService::XING::Response;
 
-our $VERSION = '0.003';
+our $VERSION = '0.010';
 
 our @CARP_NOT = qw(Mo::builder Mo::chain Mo::is Mo::required);
 @Carp::Internal{qw(Mo::builder Mo::chain Mo::is Mo::required)} = (1, 1, 1, 1);
@@ -29,6 +29,18 @@ my @FUNCTAB = (
     # User Profiles
     get_user_details =>
         [GET => '/v1/users/:id', '@fields'],
+    find_by_emails =>
+        [GET => '/v1/users/find_by_emails', '@!emails', '@user_fields'],
+
+    # Messages
+    list_conversations =>
+        [GET => '/v1/users/:user_id/conversations', 'limit', 'offset', '@user_fields', 'with_latest_messages'],
+    get_conversation =>
+        [GET => '/v1/users/:user_id/conversations/:id', '@user_fields', 'with_latest_messages'],
+    list_conversation_messages =>
+        [GET => '/v1/users/:user_id/conversations/:conversation_id/messages', 'limit', 'offset', '@user_fields'],
+    get_conversation_message =>
+        [GET => '/v1/users/:user_id/conversations/:conversation_id/messages/:id', '@user_fields'],
 
     # Status Messages
     create_status_message =>
@@ -856,6 +868,50 @@ session, rather than the whole L<WebService::XING> object.
 
 See L<https://dev.xing.com/docs/get/users/:id>
 
+=head2 find_user_by_email_address
+
+  $res = $xing->find_by_emails(
+    emails => \@emails, user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/users/find_by_emails>
+
+=head2 list_conversations
+
+  $res = $xing->list_conversations(
+    user_id => $user_id, limit => $limit, offset => $offset,
+    user_fields => \@user_fields, with_latest_messages => $number
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/conversations>
+
+=head2 get_conversation
+
+  $res = $xing->get_conversation(
+    user_id => $user_id, id => $conversation_id,
+    user_fields => \@user_fields, with_latest_messages => $number
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/conversations/:id>
+
+=head2 list_conversation_messages
+
+  $res = $xing->list_conversation_messages(
+    user_id => $user_id, conversation_id => $conversation_id,
+    limit => $limit, offset => $offset, user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/conversations/:conversation_id/messages>
+
+=head2 get_conversation_message
+
+  $res = $xing->get_conversation_message(
+    user_id => $user_id, conversation_id => $conversation_id,
+    id => $message_id, user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/conversations/:conversation_id/messages/:id>
+
 =head2 create_status_message
 
   $res = $xing->create_status_message(id => $id, message => $message);
@@ -864,14 +920,14 @@ See L<https://dev.xing.com/docs/post/users/:id/status_message>
 
 =head2 get_profile_message
 
-  $res = $xing->get_profile_message(user_id => $id);
+  $res = $xing->get_profile_message(user_id => $user_id);
 
 See L<https://dev.xing.com/docs/get/users/:user_id/profile_message>
 
 =head2 update_profile_message
 
   $res = $xing->update_profile_message(
-    user_id => $id, message => $message, public => $bool
+    user_id => $user_id, message => $message, public => $bool
   );
 
 See L<https://dev.xing.com/docs/put/users/:user_id/profile_message>
@@ -879,7 +935,7 @@ See L<https://dev.xing.com/docs/put/users/:user_id/profile_message>
 =head2 get_contacts
 
   $res = $xing->get_contacts(
-    user_id => $id,
+    user_id => $user_id,
     limit => $limit, offset => $offset, order_by => $order_by,
     user_fields => \@user_fields
   );
@@ -889,7 +945,7 @@ See L<https://dev.xing.com/docs/get/users/:user_id/contacts>
 =head2 get_shared_contacts
 
   $res = $xing->get_shared_contacts(
-    user_id => $id,
+    user_id => $user_id,
     limit => $limit, offset => $offset, order_by => $order_by,
     user_fields => \@user_fields
   );
@@ -899,7 +955,7 @@ See L<https://dev.xing.com/docs/get/users/:user_id/contacts/shared>
 =head2 get_incoming_contact_requests
 
   $res = $xing->get_incoming_contact_requests(
-    user_id => $id,
+    user_id => $user_id,
     limit => $limit, offset => $offset,
     user_fields => \@user_fields
   );
@@ -909,7 +965,7 @@ See L<https://dev.xing.com/docs/get/users/:user_id/contact_requests>
 =head2 get_sent_contact_requests
 
   $res = $xing->get_sent_contact_requests(
-    user_id => $id, limit => $limit, offset => $offset
+    user_id => $user_id, limit => $limit, offset => $offset
   );
 
 See L<https://dev.xing.com/docs/get/users/:user_id/contact_requests/sent>
@@ -917,7 +973,7 @@ See L<https://dev.xing.com/docs/get/users/:user_id/contact_requests/sent>
 =head2 create_contact_request
 
   $res = $xing->create_contact_request(
-    user_id => $id, message => $message
+    user_id => $user_id, message => $message
   );
 
 See L<https://dev.xing.com/docs/post/users/:user_id/contact_requests>
@@ -941,7 +997,7 @@ See L<https://dev.xing.com/docs/delete/users/:user_id/contact_requests/:id>
 =head2 get_contact_paths
 
   $res = $xing->get_contact_paths(
-    user_id => $id,
+    user_id => $user_id,
     other_user_id => $other_user_id,
     all_paths => $bool,
     user_fields => \@user_fields
@@ -952,7 +1008,7 @@ See L<https://dev.xing.com/docs/get/users/:user_id/network/:other_user_id/paths>
 =head2 get_bookmarks
 
   $res = $xing->get_bookmarks(
-    user_id => $id,
+    user_id => $user_id,
     limit => $limit, offset => $offset,
     user_fields => \@user_fields
   );
@@ -961,27 +1017,27 @@ See L<https://dev.xing.com/docs/get/users/:user_id/bookmarks>
 
 =head2 create_bookmark
 
-  $res = $xing->create_bookmark(id => $id, user_id => $id);
+  $res = $xing->create_bookmark(id => $id, user_id => $user_id);
 
 See L<https://dev.xing.com/docs/put/users/:user_id/bookmarks/:id>
 
 =head2 delete_bookmark
 
-  $res = $xing->delete_bookmark(id => $id, user_id => $id);
+  $res = $xing->delete_bookmark(id => $id, user_id => $user_id);
 
 See L<https://dev.xing.com/docs/delete/users/:user_id/bookmarks/:id>
 
 =head2 get_network_feed
 
   $res = $xing->get_network_feed(
-    user_id => $id,
+    user_id => $user_id,
     aggregate => $bool,
     since => $date,
     user_fields => \@user_fields
   );
 
   $res = $xing->get_network_feed(
-    user_id => $id,
+    user_id => $user_id,
     aggregate => $bool,
     until => $date,
     user_fields => \@user_fields
@@ -992,13 +1048,13 @@ See L<https://dev.xing.com/docs/get/users/:user_id/network_feed>
 =head2 get_user_feed
 
   $res = $xing->get_user_feed(
-    user_id => $id,
+    user_id => $user_id,
     since => $date,
     user_fields => \@user_fields
   );
 
   $res = $xing->get_user_feed(
-    user_id => $id,
+    user_id => $user_id,
     until => $date,
     user_fields => \@user_fields
   );
@@ -1076,7 +1132,7 @@ See L<https://dev.xing.com/docs/delete/activities/:activity_id/like>
 =head2 get_profile_visits
 
   $res = $xing->create_profile_visit(
-    user_id => $id,
+    user_id => $user_id,
     limit => $limit, offset => $offset,
     since => $date,
     strip_html => $bool
@@ -1086,14 +1142,14 @@ See L<https://dev.xing.com/docs/get/users/:user_id/visits>
 
 =head2 create_profile_visit
 
-  $res = $xing->get_profile_visits(user_id => $id);
+  $res = $xing->get_profile_visits(user_id => $user_id);
 
 See L<https://dev.xing.com/docs/post/users/:user_id/visits>
 
 =head2 get_recommendations
 
   $res = $xing->get_recommendations(
-    user_id => $id,
+    user_id => $user_id,
     limit => $limit, offset => $offset,
     similar_user_id => $similar_user_id,
     user_fields => \@user_fields
@@ -1114,7 +1170,7 @@ See L<https://dev.xing.com/docs/post/users/invite>
 =head2 update_geo_location
 
   $res = $xing->update_geo_location(
-    user_id => $id,
+    user_id => $user_id,
     accuracy => $accuracy,
     latitude => $latitude, longitude => $longitude,
     ttl => $ttl
@@ -1125,7 +1181,7 @@ See L<https://dev.xing.com/docs/put/users/:user_id/geo_location>
 =head2 get_nearby_users
 
   $res = $xing->get_nearby_users(
-    user_id => $id,
+    user_id => $user_id,
     age => $age,
     radius => $radius,
     user_fields => \@user_fields

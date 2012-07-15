@@ -1,7 +1,12 @@
 Revision history for WebService-XING
 
-0.003	2012-04-01
+0.010   2012-07-15
+    - Implement new API message conversation methods.
+    - Improve login process of example application.
+
+0.003	2012-07-14
     - Documentation fixes.
+    - Parameters now might have multiple flags
 
 0.002	2012-04-01
     - Documentation fixes.

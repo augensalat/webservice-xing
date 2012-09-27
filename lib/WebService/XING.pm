@@ -43,12 +43,24 @@ my @FUNCTAB = (
     # Messages
     list_conversations =>
         [GET => '/v1/users/:user_id/conversations', 'limit', 'offset', '@user_fields', 'with_latest_messages'],
+    create_conversation =>
+        [POST => '/v1/users/:user_id/conversations', '!content', '@!recipient_ids', '!subject'],
     get_conversation =>
         [GET => '/v1/users/:user_id/conversations/:id', '@user_fields', 'with_latest_messages'],
+    mark_conversation_read =>
+        [PUT => '/v1/users/:user_id/conversations/:id/read'],
     list_conversation_messages =>
         [GET => '/v1/users/:user_id/conversations/:conversation_id/messages', 'limit', 'offset', '@user_fields'],
     get_conversation_message =>
         [GET => '/v1/users/:user_id/conversations/:conversation_id/messages/:id', '@user_fields'],
+    mark_conversation_message_read =>
+        [PUT => '/v1/users/:user_id/conversations/:conversation_id/messages/:id/read'],
+    mark_conversation_message_unread =>
+        [DELETE => '/v1/users/:user_id/conversations/:conversation_id/messages/:id/read'],
+    create_conversation_message =>
+        [POST => '/v1/users/:user_id/conversations/:conversation_id/messages', '!content'],
+    delete_conversation =>
+        [DELETE => '/v1/users/:user_id/conversations/:id'],
 
     # Status Messages
     create_status_message =>
@@ -935,6 +947,15 @@ See L<https://dev.xing.com/docs/get/users/:user_id/jobs/recommendations>
 
 See L<https://dev.xing.com/docs/get/users/:user_id/conversations>
 
+=head2 create_conversation
+
+  $res = $xing->create_conversation(
+    user_id => $user_id, content => $content, subject => $subject,
+    recipient_ids => \@recipient_ids
+  );
+
+See L<https://dev.xing.com/docs/post/users/:user_id/conversations>
+
 =head2 get_conversation
 
   $res = $xing->get_conversation(
@@ -943,6 +964,14 @@ See L<https://dev.xing.com/docs/get/users/:user_id/conversations>
   );
 
 See L<https://dev.xing.com/docs/get/users/:user_id/conversations/:id>
+
+=head2 mark_conversation_read
+
+  $res = $xing->mark_conversation_read(
+    user_id => $user_id, id => $id
+  );
+
+See L<https://dev.xing.com/docs/put/users/:user_id/conversations/:id/read>
 
 =head2 list_conversation_messages
 
@@ -961,6 +990,41 @@ See L<https://dev.xing.com/docs/get/users/:user_id/conversations/:conversation_i
   );
 
 See L<https://dev.xing.com/docs/get/users/:user_id/conversations/:conversation_id/messages/:id>
+
+=head2 mark_conversation_message_read
+
+  $res = $xing->mark_conversation_message_read(
+    user_id => $user_id, conversation_id => $conversation_id,
+    id => $message_id
+  );
+
+See L<https://dev.xing.com/docs/put/users/:user_id/conversations/:conversation_id/messages/:id/read>
+
+=head2 mark_conversation_message_unread
+
+  $res = $xing->mark_conversation_message_unread(
+    user_id => $user_id, conversation_id => $conversation_id,
+    id => $message_id
+  );
+
+See L<https://dev.xing.com/docs/delete/users/:user_id/conversations/:conversation_id/messages/:id/read>
+
+=head2 create_conversation_message
+
+  $res = $xing->create_conversation_message(
+    user_id => $user_id, conversation_id => $conversation_id,
+    content => $content
+  );
+
+See L<https://dev.xing.com/docs/delete/users/:user_id/conversations/:conversation_id/messages/:id/read>
+
+=head2 delete_conversation
+
+  $res = $xing->delete_conversation(
+    user_id => $user_id, id => $conversation_id
+  );
+
+See L<https://dev.xing.com/docs/delete/users/:user_id/conversations/:id>
 
 =head2 create_status_message
 

@@ -63,6 +63,8 @@ my @FUNCTAB = (
     # Contacts
     list_contacts =>
         [GET => '/v1/users/:user_id/contacts', 'limit', 'offset', 'order_by', '@user_fields'],
+    list_contact_tags =>
+        [GET => '/v1/users/:user_id/contacts/:contact_id/tags'],
     list_shared_contacts =>
         [GET => '/v1/users/:user_id/contacts/shared', 'limit', 'offset', 'order_by', '@user_fields'],
 
@@ -989,6 +991,14 @@ See L<https://dev.xing.com/docs/put/users/:user_id/profile_message>
   );
 
 See L<https://dev.xing.com/docs/get/users/:user_id/contacts>
+
+=head2 list_contact_tags
+
+  $res = $xing->list_contacts(
+    user_id => $user_id, contact_id => $contact_id
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/contacts/:contact_id/tags>
 
 =head2 list_shared_contacts
 

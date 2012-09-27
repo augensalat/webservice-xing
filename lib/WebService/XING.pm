@@ -14,7 +14,7 @@ use URI;
 use WebService::XING::Function;
 use WebService::XING::Response;
 
-our $VERSION = '0.020';
+our $VERSION = '0.030';
 
 our @CARP_NOT = qw(Mo::builder Mo::chain Mo::is Mo::required);
 @Carp::Internal{qw(Mo::builder Mo::chain Mo::is Mo::required)} = (1, 1, 1, 1);
@@ -31,6 +31,14 @@ my @FUNCTAB = (
         [GET => '/v1/users/:id', '@fields'],
     find_by_emails =>
         [GET => '/v1/users/find_by_emails', '@!emails', '@user_fields'],
+
+    # Jobs
+    get_job_posting =>
+        [GET => '/v1/jobs/:id', '@user_fields'],
+    find_jobs =>
+        [GET => '/v1/jobs/find', '!query', 'limit', 'location', 'offset', '@user_fields'],
+    list_job_recommendations =>
+        [GET => '/v1/users/:user_id/jobs/recommendations', 'limit', 'offset', '@user_fields'],
 
     # Messages
     list_conversations =>
@@ -889,6 +897,32 @@ See L<https://dev.xing.com/docs/get/users/:id>
   );
 
 See L<https://dev.xing.com/docs/get/users/find_by_emails>
+
+=head2 get_job_posting
+
+  $res = $xing->get_job_posting(
+    id => $id, user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/jobs/:id>
+
+=head2 find_jobs
+
+  $res = $xing->find_jobs(
+    query => $query, limit => $limit, location => $location,
+    offset => $offset, user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/jobs/find>
+
+=head2 list_job_recommendations
+
+  $res = $xing->list_job_recommendations(
+    user_id => $user_id, limit => $limit, offset => $offset,
+    user_fields => \@user_fields
+  );
+
+See L<https://dev.xing.com/docs/get/users/:user_id/jobs/recommendations>
 
 =head2 list_conversations
 
